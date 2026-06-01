@@ -35,8 +35,12 @@ export function optionClass(groups: DropdownGroups, group: string, code: string 
   return option?.color_class || fallback;
 }
 
+const UAT_BASE_PATH = "/uat";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 export async function fetchDropdownGroups(groupKeys: string[]): Promise<DropdownGroups> {
-  const res = await fetch(`/api/dropdown-options?groups=${encodeURIComponent(groupKeys.join(","))}`);
+  const res = await fetch(uatPath(`/api/dropdown-options?groups=${encodeURIComponent(groupKeys.join(","))}`));
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to load dropdown options");
   return data.groups || {};

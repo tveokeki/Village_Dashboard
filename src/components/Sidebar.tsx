@@ -15,12 +15,16 @@ const navItems = [
   { icon: "🛠️", label: { th: "ผู้ดูแล", en: "Admin" }, href: "/admin" },
 ];
 
+const UAT_BASE_PATH = "/uat";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { lang } = useLanguage();
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/login" });
+    await signOut({ callbackUrl: uatPath("/login") });
   };
 
   return (
@@ -39,11 +43,11 @@ export default function Sidebar() {
 
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const active = pathname === item.href || pathname === uatPath(item.href) || pathname.startsWith(item.href + "/") || pathname.startsWith(uatPath(item.href) + "/");
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={uatPath(item.href)}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-150 ${
                 active
                   ? "bg-brand-50 text-brand-700 font-medium border border-brand-200"

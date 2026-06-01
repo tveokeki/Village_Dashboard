@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import StatusBadge from "@/components/StatusBadge";
 import { useLanguage } from "@/components/LanguageContext";
+
+const UAT_BASE_PATH = "/uat";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
 
 export default function DashboardPage() {
   const { lang } = useLanguage();
@@ -11,7 +14,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/stats")
+    fetch(uatPath("/api/stats"))
       .then((r) => r.json())
       .then(setData)
       .catch(console.error)
@@ -46,50 +49,55 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
-            <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <Link href={uatPath("/tickets?status=received")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดรายการปัญหารอดำเนินการ", "Open pending tickets") }>
               <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
                 <span className="text-amber-600 text-lg">⏳</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.received || 0}</div>
               <div className="text-sm text-surface-500 mt-1">{t("รอดำเนินการ", "Pending")}</div>
-            </div>
-            <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+              <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
+            </Link>
+            <Link href={uatPath("/tickets?status=in_progress")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดรายการปัญหาที่กำลังแก้ไข", "Open in-progress tickets") }>
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center mb-3">
                 <span className="text-blue-600 text-lg">🔧</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.in_progress || 0}</div>
               <div className="text-sm text-surface-500 mt-1">{t("กำลังแก้ไข", "In Progress")}</div>
-            </div>
-            <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+              <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
+            </Link>
+            <Link href={uatPath("/tickets?status=resolved")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดรายการปัญหาที่เสร็จสิ้น", "Open resolved tickets") }>
               <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mb-3">
                 <span className="text-emerald-600 text-lg">✅</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.resolved || 0}</div>
               <div className="text-sm text-surface-500 mt-1">{t("เสร็จสิ้น", "Resolved")}</div>
-            </div>
-            <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+              <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
+            </Link>
+            <Link href={uatPath("/tickets?status=closed")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดรายการปัญหาที่ปิดแล้ว", "Open closed tickets") }>
               <div className="w-10 h-10 rounded-xl bg-surface-200 flex items-center justify-center mb-3">
                 <span className="text-surface-600 text-lg">📁</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.closed || 0}</div>
               <div className="text-sm text-surface-500 mt-1">{t("ปิด", "Closed")}</div>
-            </div>
+              <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
+            </Link>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-surface-800">📢 {t("ประกาศล่าสุด", "Latest Announcements")}</h2>
-                <Link href="/announcements" className="text-sm text-brand-500 hover:underline">
+                <Link href={uatPath("/announcements")} className="text-sm text-brand-500 hover:underline">
                   {t("ดูทั้งหมด →", "View All →")}
                 </Link>
               </div>
               <div className="space-y-3">
                 {data?.announcements?.map((a: any) => (
-                  <div key={a.id} className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4 hover:shadow-md transition-shadow">
+                  <Link key={a.id} href={uatPath("/announcements")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดหน้าประกาศ", "Open announcements page") }>
                     <h3 className="font-medium text-surface-800 text-sm">{lang === "th" ? a.title_th : (a.title_en || a.title_th)}</h3>
                     <p className="text-xs text-surface-500 mt-1">{formatDate(a.published_at)}</p>
-                  </div>
+                    <p className="text-xs text-brand-600 mt-2 font-medium">{t("อ่านต่อ →", "Read more →")}</p>
+                  </Link>
                 ))}
                 {(!data?.announcements || data.announcements.length === 0) && (
                   <p className="text-sm text-surface-500 p-4">{t("ไม่มีประกาศ", "No announcements")}</p>
@@ -100,13 +108,13 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-surface-800">📄 {t("เอกสาร", "Documents")}</h2>
-                <Link href="/documents" className="text-sm text-brand-500 hover:underline">
+                <Link href={uatPath("/documents")} className="text-sm text-brand-500 hover:underline">
                   {t("ดูทั้งหมด →", "View All →")}
                 </Link>
               </div>
               <div className="space-y-3">
                 {data?.documents?.map((d: any) => (
-                  <div key={d.id} className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4 hover:shadow-md transition-shadow flex items-center justify-between">
+                  <a key={d.id} href={d.file_available ? uatPath(`/api/documents/${d.id}/download`) : uatPath("/documents")} className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดหรือดาวน์โหลดเอกสาร", "Open or download document") }>
                     <div className="flex items-center gap-3">
                       <span className="text-xl">📄</span>
                       <div>
@@ -114,8 +122,8 @@ export default function DashboardPage() {
                         <p className="text-xs text-surface-500">{formatFileSize(d.file_size_bytes)}</p>
                       </div>
                     </div>
-                    <button className="text-xs text-brand-500 hover:underline">{t("ดาวน์โหลด", "Download")}</button>
-                  </div>
+                    <span className="text-xs text-brand-500 hover:underline">{d.file_available ? t("ดาวน์โหลด", "Download") : t("ดูเอกสาร", "View")}</span>
+                  </a>
                 ))}
                 {(!data?.documents || data.documents.length === 0) && (
                   <p className="text-sm text-surface-500 p-4">{t("ไม่มีเอกสาร", "No documents")}</p>

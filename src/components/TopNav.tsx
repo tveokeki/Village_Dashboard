@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useLanguage } from "./LanguageContext";
 
+const UAT_BASE_PATH = "/uat";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 export default function TopNav() {
   const { lang, setLang } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -56,7 +60,7 @@ export default function TopNav() {
           ].map((item) => (
             <a
               key={item.href}
-              href={item.href}
+              href={uatPath(item.href)}
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-600 hover:bg-surface-100 hover:text-surface-800 transition-colors"
             >
@@ -69,7 +73,7 @@ export default function TopNav() {
             <button
               onClick={() => {
                 setMenuOpen(false);
-                window.location.href = "/api/auth/signout";
+                window.location.href = uatPath("/api/auth/signout");
               }}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-600 hover:bg-red-50 hover:text-red-600 transition-colors w-full text-sm"
             >
