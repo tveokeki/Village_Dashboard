@@ -5,6 +5,9 @@ import { useLanguage } from "@/components/LanguageContext";
 import Toast from "@/components/Toast";
 import { DropdownGroups, fetchDropdownGroups, optionText, optionWithIcon } from "@/lib/dropdown-client";
 
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 type Tab = "announcements" | "documents" | "tickets" | "users" | "notifications";
 
 export default function AdminPage() {
@@ -34,11 +37,11 @@ export default function AdminPage() {
     setMessage("");
     try {
       const [a, d, tk, u, n, dd] = await Promise.all([
-        fetch("/api/admin/announcements").then(r => r.json()),
-        fetch("/api/admin/documents").then(r => r.json()),
-        fetch(`/api/admin/tickets?status=${ticketFilter}`).then(r => r.json()),
-        fetch("/api/admin/users").then(r => r.json()),
-        fetch("/api/notifications").then(r => r.json()),
+        fetch(uatPath("/api/admin/announcements")).then(r => r.json()),
+        fetch(uatPath("/api/admin/documents")).then(r => r.json()),
+        fetch(uatPath(`/api/admin/tickets?status=${ticketFilter}`)).then(r => r.json()),
+        fetch(uatPath("/api/admin/users")).then(r => r.json()),
+        fetch(uatPath("/api/notifications")).then(r => r.json()),
         fetchDropdownGroups(["announcement_category", "document_category", "ticket_status", "ticket_priority", "notification_type", "problem_category"]),
       ]);
       if (a.error || d.error || tk.error || u.error) setMessage(a.error || d.error || tk.error || u.error);
@@ -58,7 +61,7 @@ export default function AdminPage() {
     const form = new FormData();
     form.append("file", file);
     form.append("type", type);
-    const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+    const res = await fetch(uatPath("/api/admin/upload"), { method: "POST", body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Upload failed");
     return data;
@@ -80,7 +83,7 @@ export default function AdminPage() {
         category: f.get("category"), image_path: imagePath,
         is_pinned: f.get("is_pinned") === "on", is_published: f.get("is_published") === "on",
       };
-      const res = await fetch(editingAnnouncement ? `/api/admin/announcements/${editingAnnouncement.id}` : "/api/admin/announcements", { method: editingAnnouncement ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = await fetch(editingAnnouncement ? uatPath(`/api/admin/announcements/${editingAnnouncement.id}`) : uatPath("/api/admin/announcements"), { method: editingAnnouncement ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       formEl.reset();
@@ -112,7 +115,7 @@ export default function AdminPage() {
         category: f.get("category"), file_name: up.file_name, file_path: up.file_path,
         file_size_bytes: up.file_size_bytes, mime_type: up.mime_type, is_active: true,
       };
-      const res = await fetch(editingDocument ? `/api/admin/documents/${editingDocument.id}` : "/api/admin/documents", { method: editingDocument ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = await fetch(editingDocument ? uatPath(`/api/admin/documents/${editingDocument.id}`) : uatPath("/api/admin/documents"), { method: editingDocument ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       formEl.reset();
@@ -134,7 +137,7 @@ export default function AdminPage() {
         message_th: f.get("message_th"), message_en: f.get("message_en"),
         type: f.get("type"), target_url: f.get("target_url"), user_id: f.get("user_id") || null,
       };
-      const res = await fetch(editingNotification ? `/api/notifications/${editingNotification.id}` : "/api/notifications", { method: editingNotification ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = await fetch(editingNotification ? uatPath(`/api/notifications/${editingNotification.id}`) : uatPath("/api/notifications"), { method: editingNotification ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       formEl.reset();
@@ -146,7 +149,7 @@ export default function AdminPage() {
 
   async function deleteItem(kind: "announcements" | "documents", id: string) {
     if (!confirm(t("ยืนยันการลบ?", "Confirm delete?"))) return;
-    const res = await fetch(`/api/admin/${kind}/${id}`, { method: "DELETE" });
+    const res = await fetch(uatPath(`/api/admin/${kind}/${id}`), { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) setMessage(data.error); else {
       setToast(t("ลบข้อมูลเรียบร้อยแล้ว", "Deleted successfully"));
@@ -155,7 +158,7 @@ export default function AdminPage() {
   }
 
   async function toggleAdmin(user: any) {
-    const res = await fetch(`/api/admin/users/${user.id}`, {
+    const res = await fetch(uatPath(`/api/admin/users/${user.id}`), {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: user.is_admin ? "resident" : "admin", is_admin: !user.is_admin, notification_enabled: user.notification_enabled }),
     });
@@ -179,7 +182,7 @@ export default function AdminPage() {
         assigned_to: f.get("assigned_to"),
         progress_note: f.get("progress_note"),
       };
-      const res = await fetch(`/api/admin/tickets/${ticketId}`, {
+      const res = await fetch(uatPath(`/api/admin/tickets/${ticketId}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -194,7 +197,7 @@ export default function AdminPage() {
 
   async function deleteTicket(id: string) {
     if (!confirm(t("ยืนยันการลบรายการปัญหานี้?", "Confirm delete this ticket?"))) return;
-    const res = await fetch(`/api/admin/tickets/${id}`, { method: "DELETE" });
+    const res = await fetch(uatPath(`/api/admin/tickets/${id}`), { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) setMessage(data.error); else {
       setToast(t("ลบรายการปัญหาเรียบร้อยแล้ว", "Ticket deleted successfully"));
@@ -210,7 +213,7 @@ export default function AdminPage() {
       setMessage(t("บันทึกห้ามว่าง", "Note cannot be empty"));
       return;
     }
-    const res = await fetch(`/api/admin/tickets/${ticketId}/logs/${log.id}`, {
+    const res = await fetch(uatPath(`/api/admin/tickets/${ticketId}/logs/${log.id}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ note: trimmed }),

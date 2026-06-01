@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 import { useLanguage } from "./LanguageContext";
+import { useCurrentUser } from "@/lib/current-user-client";
+
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
 
 export default function TopNav() {
   const { lang, setLang } = useLanguage();
+  const { user, loading: userLoading } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
@@ -52,11 +58,11 @@ export default function TopNav() {
             { icon: "📄", label: lang === "th" ? "เอกสาร" : "Documents", href: "/documents" },
             { icon: "🔔", label: lang === "th" ? "แจ้งเตือน" : "Notifications", href: "/notifications" },
             { icon: "👤", label: lang === "th" ? "โปรไฟล์" : "Profile", href: "/profile" },
-            { icon: "🛠️", label: lang === "th" ? "ผู้ดูแล" : "Admin", href: "/admin" },
+            ...(userLoading || !user?.isAdmin ? [] : [{ icon: "🛠️", label: lang === "th" ? "ผู้ดูแล" : "Admin", href: "/admin" }]),
           ].map((item) => (
             <a
               key={item.href}
-              href={item.href}
+              href={uatPath(item.href)}
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-600 hover:bg-surface-100 hover:text-surface-800 transition-colors"
             >
@@ -69,7 +75,7 @@ export default function TopNav() {
             <button
               onClick={() => {
                 setMenuOpen(false);
-                window.location.href = "/api/auth/signout";
+                window.location.href = uatPath("/api/auth/signout");
               }}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-600 hover:bg-red-50 hover:text-red-600 transition-colors w-full text-sm"
             >

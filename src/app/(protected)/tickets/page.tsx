@@ -5,14 +5,31 @@ import StatusBadge from "@/components/StatusBadge";
 import { useLanguage } from "@/components/LanguageContext";
 import { DropdownGroups, fetchDropdownGroups, optionClass, optionText, optionWithIcon } from "@/lib/dropdown-client";
 
+const validStatuses = new Set(["all", "received", "in_progress", "resolved", "closed"]);
+
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
+function getInitialStatusFilter() {
+  if (typeof window === "undefined") return "all";
+  const status = new URLSearchParams(window.location.search).get("status") || "all";
+  return validStatuses.has(status) ? status : "all";
+}
+
 export default function TicketsPage() {
   const { lang } = useLanguage();
   const [tickets, setTickets] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(getInitialStatusFilter);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dropdownGroups, setDropdownGroups] = useState<DropdownGroups>({});
+
+  useEffect(() => {
+    const queryStatus = getInitialStatusFilter();
+    setStatusFilter(queryStatus);
+  }, []);
 
   useEffect(() => {
     fetchDropdownGroups(["ticket_status", "ticket_priority", "problem_category"])
@@ -22,8 +39,7 @@ export default function TicketsPage() {
 
   useEffect(() => {
     setLoading(true);
-    const url = statusFilter === "all" ? "/api/tickets" : `/api/tickets?status=${statusFilter}`;
-    fetch(url)
+    fetch(statusFilter === "all" ? uatPath("/api/tickets") : uatPath(`/api/tickets?status=${statusFilter}`))
       .then((r) => r.json())
       .then((d) => { setTickets(d.tickets || []); setStats(d.stats || {}); })
       .catch(console.error)
@@ -90,8 +106,11 @@ export default function TicketsPage() {
         {statusOptions.map((opt) => {
           const count = opt.code === "all" ? Object.values(stats).reduce((a: number, b: any) => a + b, 0) : (stats[opt.code] || 0);
           return (
-            <button key={opt.code} onClick={() => setStatusFilter(opt.code)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${statusFilter === opt.code ? "bg-brand-500 text-white" : "bg-white border border-surface-200 text-surface-600 hover:bg-surface-50"}`}>
+            <button key={opt.code} onClick={() => {
+                setStatusFilter(opt.code);
+                const nextUrl = opt.code === "all" ? uatPath("/tickets") : uatPath(`/tickets?status=${opt.code}`);
+                window.history.replaceState(null, "", nextUrl);
+              }} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${statusFilter === opt.code ? "bg-brand-500 text-white" : "bg-white border border-surface-200 text-surface-600 hover:bg-surface-50"}`}>
               {opt.label} ({count})
             </button>
           );

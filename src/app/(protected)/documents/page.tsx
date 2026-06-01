@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/LanguageContext";
 import { DropdownGroups, fetchDropdownGroups } from "@/lib/dropdown-client";
 
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 export default function DocumentsPage() {
   const { lang } = useLanguage();
   const [documents, setDocuments] = useState<any[]>([]);
@@ -17,7 +21,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     setLoading(true);
-    const url = activeCategory === "all" ? "/api/documents" : `/api/documents?category=${activeCategory}`;
+    const url = activeCategory === "all" ? uatPath("/api/documents") : uatPath(`/api/documents?category=${activeCategory}`);
     fetch(url)
       .then((r) => r.json())
       .then((d) => setDocuments(d.documents || []))
@@ -113,7 +117,7 @@ export default function DocumentsPage() {
                   <span>{formatFileSize(doc.file_size_bytes)}</span>
                 </div>
                 {doc.file_available ? (
-                  <a href={`/api/documents/${doc.id}/download`} className="shrink-0 px-3 py-1.5 flex items-center justify-center rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600 transition-colors gap-1">
+                  <a href={uatPath(`/api/documents/${doc.id}/download`)} className="shrink-0 px-3 py-1.5 flex items-center justify-center rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600 transition-colors gap-1">
                     <span>⬇</span>
                     <span>{t("ดาวน์โหลด", "Download")}</span>
                   </a>

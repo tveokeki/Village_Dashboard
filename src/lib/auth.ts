@@ -90,6 +90,9 @@ const handler = NextAuth({
         token.houseNumber = user.houseNumber;
         token.preferredLang = user.preferredLang || "th";
       }
+      if (account?.provider) {
+        token.authProvider = account.provider;
+      }
       if (account?.provider === "line") {
         token.lineAccessToken = account.access_token;
         token.lineRefreshToken = account.refresh_token;
@@ -102,6 +105,7 @@ const handler = NextAuth({
         session.user.role = token.role;
         session.user.houseNumber = token.houseNumber;
         session.user.preferredLang = token.preferredLang || "th";
+        session.user.authProvider = token.authProvider || null;
       }
       return session;
     },

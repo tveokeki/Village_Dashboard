@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# runtime uploads are persisted on the server and mounted into Docker containers
+/public/uploads/
+
 # vercel
 .vercel
 

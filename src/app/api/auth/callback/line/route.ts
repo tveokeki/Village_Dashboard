@@ -6,7 +6,8 @@ import jwt from "jsonwebtoken";
 const PUBLIC_ORIGIN = "https://suan-ake.cloud";
 
 function publicUrl(path: string) {
-  return new URL(path, PUBLIC_ORIGIN);
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return new URL(normalized, PUBLIC_ORIGIN);
 }
 
 function safeRedirect(path: string | null) {
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest) {
     }
 
     const sessionToken = jwt.sign(
-      { sub: userId, email, name: displayName, image: avatarUrl, role: "resident", preferredLang: "th" },
+      { sub: userId, email, name: displayName, image: avatarUrl, role: "resident", preferredLang: "th", authProvider: "line" },
       process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "fallback",
       { expiresIn: "30d" }
     );

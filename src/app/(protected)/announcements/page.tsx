@@ -4,6 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useLanguage } from "@/components/LanguageContext";
 import { DropdownGroups, fetchDropdownGroups, optionWithIcon } from "@/lib/dropdown-client";
 
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
+
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 export default function AnnouncementsPage() {
   const { lang } = useLanguage();
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -15,7 +19,7 @@ export default function AnnouncementsPage() {
   const fetchAnnouncements = useCallback(async (cat: string) => {
     setLoading(true);
     try {
-      const url = cat === "all" ? "/api/announcements" : `/api/announcements?category=${cat}`;
+      const url = cat === "all" ? uatPath("/api/announcements") : uatPath(`/api/announcements?category=${cat}`);
       const res = await fetch(url);
       const d = await res.json();
       setAnnouncements(d.announcements || []);
@@ -123,7 +127,7 @@ export default function AnnouncementsPage() {
             >
               <div className="aspect-video bg-surface-100 flex items-center justify-center">
                 {a.image_available ? (
-                  <img src={`/api/announcements/${a.id}/image`} alt={a.title_th} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={uatPath(`/api/announcements/${a.id}/image`)} alt={a.title_th} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <span className="text-4xl text-surface-300">📢</span>
                 )}
@@ -183,7 +187,7 @@ export default function AnnouncementsPage() {
               <div className="aspect-video bg-surface-100 flex items-center justify-center">
                 {selectedAnnouncement.image_available ? (
                   <img
-                    src={`/api/announcements/${selectedAnnouncement.id}/image`}
+                    src={uatPath(`/api/announcements/${selectedAnnouncement.id}/image`)}
                     alt={selectedAnnouncement.title_th}
                     className="w-full h-full object-cover"
                   />
