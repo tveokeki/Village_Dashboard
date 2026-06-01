@@ -1,26 +1,138 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-brand-50: #F0FFF4;
+  --color-brand-100: #D8F3DC;
+  --color-brand-200: #B7E4C7;
+  --color-brand-300: #95D5B2;
+  --color-brand-400: #40916C;
+  --color-brand-500: #2D6A4F;
+  --color-brand-600: #1B4332;
+  --color-brand-700: #081C15;
+
+  --color-surface-50: #F8F9FA;
+  --color-surface-100: #F1F3F5;
+  --color-surface-200: #E9ECEF;
+  --color-surface-300: #DEE2E6;
+  --color-surface-400: #ADB5BD;
+  --color-surface-500: #6C757D;
+  --color-surface-600: #495057;
+  --color-surface-700: #343A40;
+  --color-surface-800: #212529;
+  --color-surface-900: #1A1D23;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    overflow-x: hidden;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    overflow-x: hidden;
+    width: 100vw;
+    font-family: 'Noto Sans Thai', 'Inter', system-ui, sans-serif;
+  }
+  body {
+    background-color: var(--color-surface-50);
+    color: var(--color-surface-800);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .btn-primary {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 500;
+    color: white;
+    background: linear-gradient(to right, var(--color-brand-500), var(--color-brand-400));
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transition: all 0.15s;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(to right, var(--color-brand-600), var(--color-brand-500));
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+  }
+  .btn-line {
+    background-color: #06C750;
+    color: white;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.15s;
+  }
+  .btn-line:hover { background-color: #05b348; }
+  .btn-google {
+    background-color: white;
+    border: 1px solid var(--color-surface-300);
+    color: var(--color-surface-700);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.15s;
+  }
+  .btn-google:hover { background-color: var(--color-surface-50); }
+  .input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-surface-300);
+    background-color: white;
+    color: var(--color-surface-900);
+    transition: all 0.15s;
+  }
+  .input-field::placeholder { color: var(--color-surface-400); }
+  .input-field:focus {
+    outline: none;
+    ring: 2px;
+    ring-color: var(--color-brand-400);
+    border-color: var(--color-brand-400);
+  }
+  .card {
+    background-color: white;
+    border-radius: 1rem;
+    border: 1px solid var(--color-surface-200);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    padding: 1rem;
+  }
+  @media (min-width: 768px) {
+    .card { padding: 1.5rem; }
+  }
+  .card-hover {
+    transition: box-shadow 0.2s;
+  }
+  .card-hover:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+}
+
+/* Safe area for mobile bottom nav with notch */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Prevent content from being hidden behind fixed bottom nav */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
