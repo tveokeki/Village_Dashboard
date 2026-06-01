@@ -11,7 +11,7 @@ services:
     - .env
     environment:
       DB_HOST: ${DB_HOST:-187.77.135.125}
-      DB_NAME: ${DB_NAME:-postgres}
+      DB_NAME: postgres
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER:-postgres}
