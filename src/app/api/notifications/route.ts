@@ -8,13 +8,13 @@ export async function GET(req: NextRequest) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const mineOnly = req.nextUrl.searchParams.get("mine") === "1";
-    const admin = user.isAdmin;
+    const adminView = user.isAdmin && !mineOnly;
     const r = await query(
       `SELECT id, user_id, title_th, title_en, message_th, message_en, type, target_url, is_read, sent_line, sent_email, created_at, read_at
        FROM slip_processing.notifications
-       WHERE ($1::boolean = true AND (user_id IS NULL OR user_id=$2)) OR ($1::boolean = false AND user_id=$2)
+       WHERE ($1::boolean = true) OR (user_id IS NULL OR user_id=$2)
        ORDER BY created_at DESC LIMIT 100`,
-      [admin && !mineOnly, user.id]
+      [adminView, user.id]
     );
     return NextResponse.json({ notifications: r.rows });
   } catch (err: any) {

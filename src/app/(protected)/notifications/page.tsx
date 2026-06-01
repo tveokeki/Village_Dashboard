@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useLanguage } from "@/components/LanguageContext";
 import Toast from "@/components/Toast";
 
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 export default function NotificationsPage() {
   const { lang } = useLanguage();
   const [items, setItems] = useState<any[]>([]);
@@ -13,14 +16,14 @@ export default function NotificationsPage() {
 
   async function load() {
     setLoading(true);
-    const d = await fetch("/api/notifications?mine=1").then(r => r.json()).catch(() => ({ notifications: [] }));
+    const d = await fetch(uatPath("/api/notifications?mine=1")).then(r => r.json()).catch(() => ({ notifications: [] }));
     setItems(d.notifications || []);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
 
   async function markRead(id: string) {
-    await fetch(`/api/notifications/${id}/read`, { method: "POST" });
+    await fetch(uatPath(`/api/notifications/${id}/read`), { method: "POST" });
     setToast(t("บันทึกว่าอ่านแล้วเรียบร้อย", "Saved as read successfully"));
     await load();
   }
@@ -41,7 +44,7 @@ export default function NotificationsPage() {
           {!n.is_read && <button onClick={() => markRead(n.id)} className="text-xs text-brand-600 shrink-0">{t("อ่านแล้ว", "Mark read")}</button>}
         </div>
         <p className="text-sm text-surface-700 mt-3">{lang === "th" ? n.message_th : n.message_en || n.message_th}</p>
-        {n.target_url && <a href={n.target_url} className="inline-block mt-3 text-sm text-brand-600 hover:underline">{t("เปิดดู", "Open")}</a>}
+        {n.target_url && <a href={n.target_url.startsWith("/") ? uatPath(n.target_url) : n.target_url} className="inline-block mt-3 text-sm text-brand-600 hover:underline">{t("เปิดดู", "Open")}</a>}
       </div>)}
     </div>}
   </div>;
