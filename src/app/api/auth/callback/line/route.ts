@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
     }
 
     const sessionToken = jwt.sign(
-      { sub: userId, email, name: displayName, image: avatarUrl, role: "resident", preferredLang: "th" },
+      { sub: userId, email, name: displayName, image: avatarUrl, role: "resident", preferredLang: "th", authProvider: "line" },
       process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "fallback",
       { expiresIn: "30d" }
     );

@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const { currentPassword, newPassword } = await req.json();
     const userResult = await query("SELECT password_hash FROM slip_processing.web_users WHERE id = $1", [session.user.id]);
     if (userResult.rows.length === 0) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!userResult.rows[0].password_hash) return NextResponse.json({ error: "This account does not use email/password login" }, { status: 403 });
     const valid = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
     if (!valid) return NextResponse.json({ error: "รหัสผ่านปัจจุบันไม่ถูกต้อง" }, { status: 400 });
     const newHash = await bcrypt.hash(newPassword, 12);

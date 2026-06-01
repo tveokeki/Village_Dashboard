@@ -1,0 +1,43 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export type CurrentUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  isAdmin: boolean;
+  authProvider: string | null;
+  hasPassword: boolean;
+  canChangePassword: boolean;
+};
+
+const UAT_BASE_PATH = "/uat";
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
+export function useCurrentUser() {
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(uatPath("/api/me"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setUser(data?.user || null);
+      })
+      .catch(() => {
+        if (!cancelled) setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { user, loading };
+}

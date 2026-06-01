@@ -4,15 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "./LanguageContext";
+import { useCurrentUser } from "@/lib/current-user-client";
 
-const navItems = [
+type NavItem = {
+  icon: string;
+  label: { th: string; en: string };
+  href: string;
+  adminOnly?: boolean;
+};
+
+const navItems: NavItem[] = [
   { icon: "🏠", label: { th: "แดชบอร์ด", en: "Dashboard" }, href: "/dashboard" },
   { icon: "📢", label: { th: "ประกาศ", en: "Announcements" }, href: "/announcements" },
   { icon: "🎫", label: { th: "รายการปัญหา", en: "Tickets" }, href: "/tickets" },
   { icon: "📄", label: { th: "เอกสาร", en: "Documents" }, href: "/documents" },
   { icon: "🔔", label: { th: "แจ้งเตือน", en: "Notifications" }, href: "/notifications" },
   { icon: "👤", label: { th: "โปรไฟล์", en: "Profile" }, href: "/profile" },
-  { icon: "🛠️", label: { th: "ผู้ดูแล", en: "Admin" }, href: "/admin" },
+  { icon: "🛠️", label: { th: "ผู้ดูแล", en: "Admin" }, href: "/admin", adminOnly: true },
 ];
 
 const UAT_BASE_PATH = "/uat";
@@ -22,6 +30,8 @@ const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
 export default function Sidebar() {
   const pathname = usePathname();
   const { lang } = useLanguage();
+  const { user, loading: userLoading } = useCurrentUser();
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || (!userLoading && user?.isAdmin));
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: uatPath("/login") });
@@ -42,7 +52,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = pathname === item.href || pathname === uatPath(item.href) || pathname.startsWith(item.href + "/") || pathname.startsWith(uatPath(item.href) + "/");
           return (
             <Link
