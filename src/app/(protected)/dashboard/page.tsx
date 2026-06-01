@@ -54,7 +54,7 @@ export default function DashboardPage() {
                 <span className="text-amber-600 text-lg">⏳</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.received || 0}</div>
-              <div className="text-sm text-surface-500 mt-1">{t("รอดำเนินการ", "Pending")}</div>
+              <div className="text-sm text-surface-500 mt-1">{t("รับเรื่องแล้ว", "Received")}</div>
               <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
             </Link>
             <Link href={uatPath("/tickets?status=in_progress")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดรายการปัญหาที่กำลังแก้ไข", "Open in-progress tickets") }>
@@ -62,7 +62,7 @@ export default function DashboardPage() {
                 <span className="text-blue-600 text-lg">🔧</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.in_progress || 0}</div>
-              <div className="text-sm text-surface-500 mt-1">{t("กำลังแก้ไข", "In Progress")}</div>
+              <div className="text-sm text-surface-500 mt-1">{t("กำลังดำเนินการ", "In Progress")}</div>
               <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
             </Link>
             <Link href={uatPath("/tickets?status=resolved")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดรายการปัญหาที่เสร็จสิ้น", "Open resolved tickets") }>
@@ -70,7 +70,7 @@ export default function DashboardPage() {
                 <span className="text-emerald-600 text-lg">✅</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.resolved || 0}</div>
-              <div className="text-sm text-surface-500 mt-1">{t("เสร็จสิ้น", "Resolved")}</div>
+              <div className="text-sm text-surface-500 mt-1">{t("แก้ไขแล้ว", "Resolved")}</div>
               <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
             </Link>
             <Link href={uatPath("/tickets?status=closed")} className="block bg-white rounded-2xl border border-surface-200 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2" aria-label={t("เปิดรายการปัญหาที่ปิดแล้ว", "Open closed tickets") }>
@@ -78,7 +78,7 @@ export default function DashboardPage() {
                 <span className="text-surface-600 text-lg">📁</span>
               </div>
               <div className="text-3xl font-bold text-surface-900">{data?.stats?.closed || 0}</div>
-              <div className="text-sm text-surface-500 mt-1">{t("ปิด", "Closed")}</div>
+              <div className="text-sm text-surface-500 mt-1">{t("ปิดงานแล้ว", "Closed")}</div>
               <div className="text-xs text-brand-600 mt-3 font-medium">{t("ดูรายการ →", "View tickets →")}</div>
             </Link>
           </div>
