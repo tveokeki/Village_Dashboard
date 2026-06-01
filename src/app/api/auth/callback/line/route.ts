@@ -4,19 +4,22 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 const PUBLIC_ORIGIN = "https://suan-ake.cloud";
+const UAT_BASE_PATH = "/uat";
 
 function publicUrl(path: string) {
-  return new URL(path, PUBLIC_ORIGIN);
+  const normalized = path.startsWith(UAT_BASE_PATH) ? path : `${UAT_BASE_PATH}${path.startsWith("/") ? path : `/${path}`}`;
+  return new URL(normalized, PUBLIC_ORIGIN);
 }
 
 function safeRedirect(path: string | null) {
-  if (!path) return "/dashboard";
-  if (path.startsWith("/")) return path;
+  if (!path) return `${UAT_BASE_PATH}/dashboard`;
+  if (path.startsWith(UAT_BASE_PATH)) return path;
+  if (path.startsWith("/")) return `${UAT_BASE_PATH}${path}`;
   try {
     const url = new URL(path);
-    if (url.origin === PUBLIC_ORIGIN) return `${url.pathname}${url.search}`;
+    if (url.origin === PUBLIC_ORIGIN) return safeRedirect(`${url.pathname}${url.search}`);
   } catch {}
-  return "/dashboard";
+  return `${UAT_BASE_PATH}/dashboard`;
 }
 
 export async function GET(req: NextRequest) {
@@ -51,7 +54,7 @@ export async function GET(req: NextRequest) {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        redirect_uri: "https://suan-ake.cloud/api/auth/callback/line",
+        redirect_uri: "https://suan-ake.cloud/uat/api/auth/callback/line",
         client_id: process.env.LINE_CLIENT_ID || "",
         client_secret: process.env.LINE_CLIENT_SECRET || "",
       }),
