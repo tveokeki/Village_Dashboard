@@ -20,8 +20,8 @@ services:
       PUBLIC_ORIGIN: https://suan-ake.cloud
       MAIL_FROM: ${MAIL_FROM:-Suan Ake Lake Park Villa <noreply@suan-ake.cloud>}
       MAIL_EHLO_NAME: ${MAIL_EHLO_NAME:-suan-ake.cloud}
-      LINE_CLIENT_ID: ${LINE_CLIENT_ID:-1661205091}
-      LINE_CLIENT_SECRET: ${LINE_CLIENT_SECRET:?LINE_CLIENT_SECRET is required}
+      LINE_CLIENT_ID: "1661205091"
+      LINE_CLIENT_SECRET: ${PROD_LINE_CLIENT_SECRET:?PROD_LINE_CLIENT_SECRET is required}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     expose:
