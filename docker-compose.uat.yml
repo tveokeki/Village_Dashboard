@@ -1,0 +1,42 @@
+services:
+  suan-eak-web-uat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: suan-eak-web-uat
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3001:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.suan-ake-uat.rule=Host(`suan-ake.cloud`) && PathPrefix(`/uat`)
+      - traefik.http.routers.suan-ake-uat-root.rule=Host(`suan-ake.cloud`) && Path(`/uat`)
+      - traefik.http.routers.suan-ake-uat-root.priority=2000
+      - traefik.http.routers.suan-ake-uat-root.entrypoints=websecure
+      - traefik.http.routers.suan-ake-uat-root.tls.certresolver=mytlschallenge
+      - traefik.http.routers.suan-ake-uat-root.middlewares=suan-ake-uat-root-redirect
+      - traefik.http.routers.suan-ake-uat-root.service=suan-ake-uat
+      - traefik.http.routers.suan-ake-uat.priority=1000
+      - traefik.http.routers.suan-ake-uat.entrypoints=websecure
+      - traefik.http.routers.suan-ake-uat.tls.certresolver=mytlschallenge
+      - traefik.http.services.suan-ake-uat.loadbalancer.server.port=3000
+      - traefik.docker.network=n8n_default
+      - traefik.http.middlewares.suan-ake-uat-root-redirect.redirectregex.regex=^https?://suan-ake.cloud/uat/?$
+      - traefik.http.middlewares.suan-ake-uat-root-redirect.redirectregex.replacement=https://suan-ake.cloud/uat/login
+      - traefik.http.middlewares.suan-ake-uat-root-redirect.redirectregex.permanent=false
+      - traefik.http.middlewares.suan-ake-uat-strip.stripprefix.prefixes=/uat
+      - traefik.http.middlewares.suan-ake-uat-strip.stripprefix.forceSlash=true
+      - traefik.http.middlewares.suan-ake-uat-empty-to-root.replacepathregex.regex=^$
+      - traefik.http.middlewares.suan-ake-uat-empty-to-root.replacepathregex.replacement=/
+      - traefik.http.middlewares.suan-ake-uat-nocache.headers.customResponseHeaders.Cache-Control=no-store,no-cache,must-revalidate,max-age=0
+      - traefik.http.middlewares.suan-ake-uat-nocache.headers.customResponseHeaders.X-UAT-Route=suan-eak-web-uat
+      - traefik.http.routers.suan-ake-uat.middlewares=suan-ake-uat-root-redirect,suan-ake-uat-strip,suan-ake-uat-empty-to-root,suan-ake-uat-nocache
+      - traefik.http.routers.suan-ake-uat.service=suan-ake-uat
+    networks:
+      - n8n_default
+
+networks:
+  n8n_default:
+    external: true
