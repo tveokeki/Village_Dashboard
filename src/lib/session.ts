@@ -2,12 +2,14 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { auth } from "./auth";
 import { query } from "./db";
+import { getUserRoles, mergeLegacyRoles } from "./user-roles";
 
 export type AppUser = {
   id: string;
   email: string;
   name?: string;
   role?: string;
+  roles?: string[];
   isAdmin?: boolean;
   linkedUserId?: string | null;
 };
@@ -22,7 +24,8 @@ export async function getCurrentUser(): Promise<AppUser | null> {
       );
       if (r.rows[0]) {
         const u = r.rows[0];
-        return { id: u.id, email: u.email, name: u.display_name, role: u.role, isAdmin: Boolean(u.is_admin || u.role === "admin"), linkedUserId: u.user_id || null };
+        const roles = mergeLegacyRoles(await getUserRoles(u.id), u.role, u.is_admin);
+        return { id: u.id, email: u.email, name: u.display_name, role: u.role, roles, isAdmin: roles.includes("admin"), linkedUserId: u.user_id || null };
       }
       return {
         id: nextAuthSession.user.id,
@@ -48,7 +51,8 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     );
     if (r.rows[0]) {
       const u = r.rows[0];
-      return { id: u.id, email: u.email, name: u.display_name || decoded.name, role: u.role, isAdmin: Boolean(u.is_admin || u.role === "admin"), linkedUserId: u.user_id || null };
+      const roles = mergeLegacyRoles(await getUserRoles(u.id), u.role, u.is_admin);
+      return { id: u.id, email: u.email, name: u.display_name || decoded.name, role: u.role, roles, isAdmin: roles.includes("admin"), linkedUserId: u.user_id || null };
     }
     return { id: decoded.sub, email: decoded.email || "", name: decoded.name || "", role: decoded.role || "resident", isAdmin: decoded.role === "admin" };
   } catch {

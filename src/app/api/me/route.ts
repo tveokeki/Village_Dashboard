@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { auth } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/session";
+import { getUserRoles, mergeLegacyRoles } from "@/lib/user-roles";
 import { query } from "@/lib/db";
 
 async function getSessionProvider(email?: string) {
@@ -47,7 +48,8 @@ export async function GET() {
 
     const authProvider = await getSessionProvider(dbUser.email);
     const hasPassword = Boolean(dbUser.has_password);
-    const isAdmin = Boolean(dbUser.is_admin || dbUser.role === "admin" || user.isAdmin);
+    const roles = mergeLegacyRoles(await getUserRoles(dbUser.id), dbUser.role, Boolean(dbUser.is_admin || user.isAdmin));
+    const isAdmin = roles.includes("admin");
     const canChangePassword = authProvider === "credentials" || (!authProvider && hasPassword && !dbUser.email?.endsWith("@line.oauth"));
 
     return NextResponse.json({
@@ -56,6 +58,7 @@ export async function GET() {
         email: dbUser.email,
         name: dbUser.display_name || user.name || dbUser.email,
         role: dbUser.role || "resident",
+        roles,
         isAdmin,
         authProvider: authProvider || null,
         hasPassword,

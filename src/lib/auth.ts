@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { query } from "./db";
+import { getUserRoles, mergeLegacyRoles } from "./user-roles";
 import crypto from "crypto";
 
 const LINE_CLIENT_ID = process.env.LINE_CLIENT_ID || "";
@@ -106,6 +107,9 @@ const handler = NextAuth({
         session.user.houseNumber = token.houseNumber;
         session.user.preferredLang = token.preferredLang || "th";
         session.user.authProvider = token.authProvider || null;
+        if (session.user.id) {
+          session.user.roles = mergeLegacyRoles(await getUserRoles(session.user.id), token.role, token.role === "admin");
+        }
       }
       return session;
     },

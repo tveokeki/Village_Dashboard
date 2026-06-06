@@ -4,20 +4,22 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 const PUBLIC_ORIGIN = "https://suan-ake.cloud";
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
 
 function publicUrl(path: string) {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const normalized = path.startsWith(UAT_BASE_PATH) ? path : `${UAT_BASE_PATH}${path.startsWith("/") ? path : `/${path}`}`;
   return new URL(normalized, PUBLIC_ORIGIN);
 }
 
 function safeRedirect(path: string | null) {
-  if (!path) return "/dashboard";
-  if (path.startsWith("/")) return path;
+  if (!path) return `${UAT_BASE_PATH}/dashboard`;
+  if (path.startsWith(UAT_BASE_PATH)) return path;
+  if (path.startsWith("/")) return `${UAT_BASE_PATH}${path}`;
   try {
     const url = new URL(path);
-    if (url.origin === PUBLIC_ORIGIN) return `${url.pathname}${url.search}`;
+    if (url.origin === PUBLIC_ORIGIN) return safeRedirect(`${url.pathname}${url.search}`);
   } catch {}
-  return "/dashboard";
+  return `${UAT_BASE_PATH}/dashboard`;
 }
 
 export async function GET(req: NextRequest) {

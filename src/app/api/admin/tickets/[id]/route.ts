@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
-import { notifyLineResolvedConfirmation } from "@/lib/line-ticket-notifications";
+import { notifyLineResolvedConfirmation, notifyLineTicketUpdate, type LinePushResult } from "@/lib/line-ticket-notifications";
 import crypto from "crypto";
 
 const allowedStatuses = new Set(["received", "in_progress", "resolved", "closed", "cancelled"]);
@@ -85,31 +85,45 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       [crypto.randomUUID(), ticket.id, ticket.status, ticket.priority, ticket.assigned_to || null, logNote, admin.id || null, admin.name || admin.email || "Admin"]
     );
 
+    let notificationId: string | null = null;
     if (statusChanged || progressNote) {
+      notificationId = crypto.randomUUID();
       await query(
         `INSERT INTO slip_processing.notifications (id, user_id, title_th, title_en, message_th, message_en, type, target_url, created_at)
          VALUES ($1,$2,$3,$4,$5,$6,'ticket',$7,NOW())`,
         [
-          crypto.randomUUID(),
+          notificationId,
           ticket.user_id,
           `อัปเดต Ticket ${ticket.ticket_number}`,
           `Ticket ${ticket.ticket_number} updated`,
           `รายการ "${ticket.problem_title}" ${statusChanged ? `เปลี่ยนสถานะเป็น ${statusLabelTh(ticket.status)}` : "มีบันทึกความคืบหน้าใหม่"}`,
           `"${ticket.problem_title}" ${statusChanged ? `is now ${statusLabelEn(ticket.status)}` : "has a new progress update"}`,
-          `/tickets`,
+          `/tickets?ticket=${encodeURIComponent(ticket.ticket_number)}`,
         ]
       );
     }
 
-    let lineConfirmation: any = null;
+    let lineConfirmation: LinePushResult | null = null;
+    let lineNotification: LinePushResult | null = null;
     if (statusChanged && status === "resolved") {
       lineConfirmation = await notifyLineResolvedConfirmation(
         ticket,
         { line_user_id: before.line_user_id, language_code: before.language_code },
       );
+      lineNotification = lineConfirmation;
+    } else if (statusChanged || progressNote) {
+      lineNotification = await notifyLineTicketUpdate(
+        ticket,
+        { line_user_id: before.line_user_id, language_code: before.language_code },
+        { statusChanged, progressNote, oldStatus: before.status, newStatus: status },
+      );
     }
 
-    return NextResponse.json({ success: true, message: "Ticket updated successfully", ticket: { ...ticket, progress_logs: await getLogs(ticket.id, admin.id) }, line_confirmation: lineConfirmation });
+    if (notificationId && lineNotification?.sent) {
+      await query("UPDATE slip_processing.notifications SET sent_line=TRUE WHERE id=$1", [notificationId]);
+    }
+
+    return NextResponse.json({ success: true, message: "Ticket updated successfully", ticket: { ...ticket, progress_logs: await getLogs(ticket.id, admin.id) }, line_confirmation: lineConfirmation, line_notification: lineNotification });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: err.status || 500 });
   }

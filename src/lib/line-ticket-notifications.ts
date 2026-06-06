@@ -15,11 +15,18 @@ type ReporterForLine = {
   language_code?: string | null;
 };
 
-type LinePushResult = {
+export type LinePushResult = {
   attempted: boolean;
   sent: boolean;
   requestId?: string;
   reason?: string;
+};
+
+type GenericTicketUpdateOptions = {
+  statusChanged?: boolean;
+  progressNote?: string;
+  oldStatus?: string;
+  newStatus?: string;
 };
 
 const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
@@ -38,6 +45,26 @@ function compactAddress(ticket: TicketForLine) {
     .join(" / ");
 }
 
+function statusLabel(status: string | undefined, lang: string) {
+  const labels = {
+    th: { received: "รับเรื่องแล้ว", in_progress: "กำลังดำเนินการ", resolved: "แก้ไขแล้ว", closed: "ปิดงานแล้ว", cancelled: "ยกเลิก" },
+    en: { received: "Received", in_progress: "In progress", resolved: "Resolved", closed: "Closed", cancelled: "Cancelled" },
+  } as Record<string, Record<string, string>>;
+  return labels[lang]?.[status || ""] || status || "-";
+}
+
+function publicOrigin() {
+  return (process.env.PUBLIC_ORIGIN || process.env.NEXTAUTH_URL || "https://suan-ake.cloud").replace(/\/$/, "");
+}
+
+export function ticketDetailUrl(ticket: TicketForLine) {
+  const origin = publicOrigin();
+  const basePath = (process.env.NEXT_PUBLIC_UAT_BASE_PATH || "").replace(/\/$/, "");
+  const pathPrefix = basePath && !origin.endsWith(basePath) ? basePath : "";
+  const ticketParam = encodeURIComponent(ticket.ticket_number || ticket.id);
+  return `${origin}${pathPrefix}/tickets?ticket=${ticketParam}`;
+}
+
 function buildResolvedMessage(ticket: TicketForLine, lang: string) {
   const address = compactAddress(ticket);
   if (lang === "en") {
@@ -46,6 +73,7 @@ function buildResolvedMessage(ticket: TicketForLine, lang: string) {
       `Issue: ${ticket.problem_title}`,
       address ? `House/Unit: ${address}` : null,
       ticket.resolution_notes ? `Note: ${ticket.resolution_notes}` : null,
+      `Details: ${ticketDetailUrl(ticket)}`,
       "Please confirm whether the issue has truly been fixed.",
     ].filter(Boolean).join("\n");
   }
@@ -55,8 +83,53 @@ function buildResolvedMessage(ticket: TicketForLine, lang: string) {
     `เรื่อง: ${ticket.problem_title}`,
     address ? `บ้าน/ยูนิต: ${address}` : null,
     ticket.resolution_notes ? `หมายเหตุ: ${ticket.resolution_notes}` : null,
+    `ดูรายละเอียด: ${ticketDetailUrl(ticket)}`,
     "กรุณายืนยันว่าปัญหาได้รับการแก้ไขแล้วจริงหรือไม่ครับ/ค่ะ",
   ].filter(Boolean).join("\n");
+}
+
+function buildGenericUpdateMessage(ticket: TicketForLine, lang: string, options: GenericTicketUpdateOptions) {
+  const address = compactAddress(ticket);
+  const note = (options.progressNote || "").trim();
+  if (lang === "en") {
+    return [
+      `🔔 Ticket ${ticket.ticket_number} has been updated.`,
+      `Issue: ${ticket.problem_title}`,
+      address ? `House/Unit: ${address}` : null,
+      options.statusChanged ? `Status: ${statusLabel(options.oldStatus, lang)} → ${statusLabel(options.newStatus, lang)}` : null,
+      note ? `Progress note: ${note}` : null,
+      `Details: ${ticketDetailUrl(ticket)}`,
+    ].filter(Boolean).join("\n");
+  }
+
+  return [
+    `🔔 มีการอัปเดต Ticket ${ticket.ticket_number}`,
+    `เรื่อง: ${ticket.problem_title}`,
+    address ? `บ้าน/ยูนิต: ${address}` : null,
+    options.statusChanged ? `สถานะ: ${statusLabel(options.oldStatus, lang)} → ${statusLabel(options.newStatus, lang)}` : null,
+    note ? `บันทึกความคืบหน้า: ${note}` : null,
+    `ดูรายละเอียด: ${ticketDetailUrl(ticket)}`,
+  ].filter(Boolean).join("\n");
+}
+
+async function pushLineText(lineUserId: string, token: string, text: string, quickReply?: unknown): Promise<{ ok: boolean; errorText?: string; status?: number }> {
+  const message: Record<string, unknown> = { type: "text", text };
+  if (quickReply) message.quickReply = quickReply;
+
+  const res = await fetch(LINE_PUSH_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ to: lineUserId, messages: [message] }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "");
+    return { ok: false, status: res.status, errorText };
+  }
+  return { ok: true };
 }
 
 function buildQuickReply(ticketId: string, requestId: string, lang: string) {
@@ -85,6 +158,31 @@ function buildQuickReply(ticketId: string, requestId: string, lang: string) {
       },
     ],
   };
+}
+
+export async function notifyLineTicketUpdate(
+  ticket: TicketForLine,
+  reporter: ReporterForLine,
+  options: GenericTicketUpdateOptions,
+): Promise<LinePushResult> {
+  const lineUserId = (reporter.line_user_id || "").trim();
+  if (!lineUserId) return { attempted: false, sent: false, reason: "reporter_has_no_line_user_id" };
+
+  const token = getLineToken();
+  if (!token) return { attempted: false, sent: false, reason: "line_channel_access_token_missing" };
+
+  const lang = reporter.language_code === "en" ? "en" : "th";
+
+  try {
+    const res = await pushLineText(lineUserId, token, buildGenericUpdateMessage(ticket, lang, options));
+    if (!res.ok) {
+      return { attempted: true, sent: false, reason: `line_push_failed_${res.status}` };
+    }
+
+    return { attempted: true, sent: true };
+  } catch {
+    return { attempted: true, sent: false, reason: "line_push_exception" };
+  }
 }
 
 export async function notifyLineResolvedConfirmation(
@@ -144,12 +242,13 @@ export async function notifyLineResolvedConfirmation(
     }
 
     return { attempted: true, sent: true, requestId: effectiveRequestId };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     await query(
       `UPDATE slip_processing.ticket_confirmation_requests
        SET status='failed', response_text=$2, updated_at=NOW()
        WHERE id=$1 AND status='pending'`,
-      [effectiveRequestId, String(err?.message || err).slice(0, 1000)],
+      [effectiveRequestId, String(message).slice(0, 1000)],
     );
     return { attempted: true, sent: false, requestId: effectiveRequestId, reason: "line_push_exception" };
   }

@@ -49,8 +49,8 @@ export default function RegisterPage() {
       <Toast message={toast} onClose={() => setToast("")} />
       <div className="w-full max-w-md">
         <div className="bg-gradient-to-r from-brand-500 to-brand-400 rounded-t-2xl h-32 flex flex-col items-center justify-center text-white">
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-2">
-            <span className="text-2xl font-bold">สอ</span>
+          <div className="w-20 h-20 rounded-full bg-white/90 p-1.5 flex items-center justify-center mb-2 shadow-md ring-1 ring-white/70">
+            <img src="/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-base font-semibold">สมัครสมาชิก</h1>
         </div>

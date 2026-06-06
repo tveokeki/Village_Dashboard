@@ -17,7 +17,9 @@ export default function AdminPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [ticketFilter, setTicketFilter] = useState("all");
+  const [ticketSearch, setTicketSearch] = useState("");
   const [users, setUsers] = useState<any[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [dropdownGroups, setDropdownGroups] = useState<DropdownGroups>({});
   const [editingAnnouncement, setEditingAnnouncement] = useState<any | null>(null);
@@ -39,7 +41,7 @@ export default function AdminPage() {
       const [a, d, tk, u, n, dd] = await Promise.all([
         fetch(uatPath("/api/admin/announcements")).then(r => r.json()),
         fetch(uatPath("/api/admin/documents")).then(r => r.json()),
-        fetch(uatPath(`/api/admin/tickets?status=${ticketFilter}`)).then(r => r.json()),
+        fetch(uatPath(`/api/admin/tickets?status=${ticketFilter}${ticketSearch.trim() ? `&q=${encodeURIComponent(ticketSearch.trim())}` : ""}`)).then(r => r.json()),
         fetch(uatPath("/api/admin/users")).then(r => r.json()),
         fetch(uatPath("/api/notifications")).then(r => r.json()),
         fetchDropdownGroups(["announcement_category", "document_category", "ticket_status", "ticket_priority", "notification_type", "problem_category"]),
@@ -49,6 +51,7 @@ export default function AdminPage() {
       setDocuments(d.documents || []);
       setTickets(tk.tickets || []);
       setUsers(u.users || []);
+      setAvailableRoles(u.roles || []);
       setNotifications(n.notifications || []);
       setDropdownGroups(dd || {});
     } finally {
@@ -56,7 +59,10 @@ export default function AdminPage() {
     }
   }
 
-  useEffect(() => { loadAll(); }, [ticketFilter]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadAll(), 300);
+    return () => window.clearTimeout(timer);
+  }, [ticketFilter, ticketSearch]);
   async function upload(file: File, type: string) {
     const form = new FormData();
     form.append("file", file);
@@ -157,16 +163,38 @@ export default function AdminPage() {
     }
   }
 
-  async function toggleAdmin(user: any) {
-    const res = await fetch(uatPath(`/api/admin/users/${user.id}`), {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: user.is_admin ? "resident" : "admin", is_admin: !user.is_admin, notification_enabled: user.notification_enabled }),
-    });
-    const data = await res.json();
-    if (!res.ok) setMessage(data.error); else {
-      setToast(t("บันทึกสิทธิ์ผู้ใช้เรียบร้อยแล้ว", "User permission saved successfully"));
+  async function saveUserRoles(user: any, roles: string[]) {
+    const nextRoles = roles.length > 0 ? roles : ["resident"];
+    setLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch(uatPath(`/api/admin/users/${user.id}`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roles: nextRoles, notification_enabled: user.notification_enabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Update failed");
+      setToast(t("บันทึกสิทธิ์ผู้ใช้เรียบร้อยแล้ว", "User roles saved successfully"));
       await loadAll();
+    } catch (err: any) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  async function toggleUserRole(user: any, roleCode: string) {
+    const currentRoles = new Set<string>(user.roles || [user.role || "resident"]);
+    if (currentRoles.has(roleCode)) {
+      currentRoles.delete(roleCode);
+    } else {
+      currentRoles.add(roleCode);
+      if (roleCode !== "resident") currentRoles.delete("resident");
+    }
+    if (currentRoles.size === 0) currentRoles.add("resident");
+    if (currentRoles.size > 1 && currentRoles.has("resident")) currentRoles.delete("resident");
+    await saveUserRoles(user, Array.from(currentRoles));
   }
 
   async function updateTicket(e: any, ticketId: string) {
@@ -300,10 +328,19 @@ export default function AdminPage() {
             <h2 className="font-semibold text-surface-900">{t("จัดการปัญหาร้องเรียน", "Manage Problem Tickets")}</h2>
             <p className="text-xs text-surface-500 mt-1">{t("เปลี่ยนสถานะ มอบหมายผู้รับผิดชอบ และบันทึกผลการแก้ไข", "Update status, assign owner, and record resolution notes")}</p>
           </div>
-          <select value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)} className="input-field md:w-48">
-            <option value="all">{t("ทุกสถานะ", "All statuses")}</option>
-            {options("ticket_status").map(s => <option key={s.code} value={s.code}>{optionText(dropdownGroups, "ticket_status", s.code, lang, s.code)}</option>)}
-          </select>
+          <div className="flex flex-col sm:flex-row gap-2 md:w-auto">
+            <input
+              value={ticketSearch}
+              onChange={(e) => setTicketSearch(e.target.value)}
+              placeholder={t("ค้นหา Ticket, รายละเอียด, บ้านเลขที่", "Search ticket, description, house")}
+              className="input-field md:w-72"
+            />
+            <select value={ticketFilter} onChange={(e) => setTicketFilter(e.target.value)} className="input-field md:w-48">
+              <option value="all">{t("ทุกสถานะ", "All statuses")}</option>
+              {options("ticket_status").map(s => <option key={s.code} value={s.code}>{optionText(dropdownGroups, "ticket_status", s.code, lang, s.code)}</option>)}
+            </select>
+            {ticketSearch && <button type="button" onClick={() => setTicketSearch("")} className="px-4 py-2 rounded-xl border border-surface-200 text-sm text-surface-600 hover:bg-surface-50">{t("ล้าง", "Clear")}</button>}
+          </div>
         </div>
         <div className="space-y-3">
           {tickets.length === 0 && <div className="card text-center text-surface-500 text-sm py-8">{t("ไม่มีรายการปัญหา", "No tickets")}</div>}
@@ -316,6 +353,7 @@ export default function AdminPage() {
                   <span className="px-2 py-0.5 rounded-full bg-surface-100 text-surface-700 text-xs">{label("ticket_priority", ticket.priority)}</span>
                 </div>
                 <h3 className="font-semibold text-surface-900 text-sm">{ticket.problem_title}</h3>
+                {ticket.image_path && <a href={uatPath(`/api/tickets/${ticket.id}/image`)} target="_blank" rel="noreferrer" className="mt-2 block w-32 h-24 rounded-xl overflow-hidden border border-surface-200 bg-surface-50"><img src={uatPath(`/api/tickets/${ticket.id}/image`)} alt={ticket.problem_title} className="w-full h-full object-cover" loading="lazy" /></a>}
                 <p className="text-sm text-surface-600 mt-1 whitespace-pre-wrap">{ticket.problem_description}</p>
                 <div className="text-xs text-surface-500 mt-2 flex flex-wrap gap-x-3 gap-y-1">
                   <span>{t("บ้านเลขที่", "House")}: {ticket.house_number || "-"}</span>
@@ -360,7 +398,55 @@ export default function AdminPage() {
         </div>
       </section>}
 
-      {message !== "Admin permission required" && tab === "users" && <section className="space-y-2">{users.map(u => <div key={u.id} className="card flex items-center justify-between gap-3"><div><div className="font-medium text-sm">{u.display_name || u.email}</div><div className="text-xs text-surface-500">{u.email} • {u.role}</div></div><button onClick={()=>toggleAdmin(u)} className={`px-3 py-1.5 rounded-lg text-xs ${u.is_admin ? "bg-red-50 text-red-700" : "bg-brand-50 text-brand-700"}`}>{u.is_admin ? "Remove Admin" : "Make Admin"}</button></div>)}</section>}
+      {message !== "Admin permission required" && tab === "users" && <section className="space-y-3">
+        <div className="card flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h2 className="font-semibold text-surface-900">{t("จัดการ Role ผู้ใช้", "Manage User Roles")}</h2>
+            <p className="text-xs text-surface-500 mt-1">{t("กำหนดสิทธิ์หลาย Role ให้ผู้ใช้ เช่น Admin, Accountant, Manager หรือ Resident", "Assign multiple roles to users, such as Admin, Accountant, Manager, or Resident")}</p>
+          </div>
+          <div className="text-xs text-surface-500">{t("จำนวนผู้ใช้", "Users")}: {users.length}</div>
+        </div>
+        {users.map(u => {
+          const userRoles = new Set<string>(u.roles || [u.role || "resident"]);
+          return (
+            <div key={u.id} className="card space-y-3">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium text-sm text-surface-900 break-words">{u.display_name || u.email}</div>
+                  <div className="text-xs text-surface-500 break-words">{u.email} {u.house_number ? `• ${t("บ้าน", "House")} ${u.house_number}` : ""}</div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {Array.from(userRoles).map((role) => <span key={role} className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs">{role}</span>)}
+                  </div>
+                </div>
+                <div className="text-xs text-surface-500 shrink-0 lg:text-right">
+                  <div>{t("Legacy role", "Legacy role")}: {u.role || "resident"}</div>
+                  <div>{u.notification_enabled ? t("รับแจ้งเตือน", "Notifications on") : t("ปิดแจ้งเตือน", "Notifications off")}</div>
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-3 border-t border-surface-100">
+                {availableRoles.map((role) => {
+                  const checked = userRoles.has(role.role_code);
+                  return (
+                    <button
+                      key={role.role_code}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => toggleUserRole(u, role.role_code)}
+                      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left transition-colors ${checked ? "bg-brand-50 border-brand-200 text-brand-700" : "bg-white border-surface-200 text-surface-600 hover:bg-surface-50"}`}
+                    >
+                      <span>
+                        <span className="block text-sm font-medium">{lang === "th" ? role.role_name_th : role.role_name_en}</span>
+                        <span className="block text-xs opacity-70">{role.role_code}</span>
+                      </span>
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${checked ? "bg-brand-500 text-white" : "bg-surface-100 text-surface-400"}`}>{checked ? "✓" : "+"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </section>}
 
       {message !== "Admin permission required" && tab === "notifications" && <section className="grid lg:grid-cols-2 gap-4">
         <form key={editingNotification?.id || "new-notification"} onSubmit={submitNotification} className="card space-y-3">

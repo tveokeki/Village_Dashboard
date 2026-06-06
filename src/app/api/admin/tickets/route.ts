@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
              t.problem_category, t.problem_title, t.problem_description,
              t.status, t.priority, t.reported_at, t.resolved_at,
              t.resolution_notes, t.assigned_to, t.line_message_id,
+             t.image_path, t.image_name, t.image_size_bytes, t.image_mime_type,
              t.created_at, t.updated_at, u.display_name AS reporter_name
       FROM slip_processing.problem_tickets t
       LEFT JOIN slip_processing.users u ON t.user_id = u.id

@@ -7,6 +7,7 @@ export type CurrentUser = {
   email: string;
   name: string;
   role: string;
+  roles?: string[];
   isAdmin: boolean;
   authProvider: string | null;
   hasPassword: boolean;

@@ -8,6 +8,11 @@ const protectedPagePrefixes = [
   "/notifications",
   "/profile",
   "/admin",
+  "/finance",
+  "/revenue",
+  "/expenses",
+  "/reconciliation",
+  "/financial-reports",
 ];
 
 const sessionCookieNames = [
@@ -56,5 +61,10 @@ export const config = {
     "/notifications/:path*",
     "/profile/:path*",
     "/admin/:path*",
+    "/finance/:path*",
+    "/revenue/:path*",
+    "/expenses/:path*",
+    "/reconciliation/:path*",
+    "/financial-reports/:path*",
   ],
 };
