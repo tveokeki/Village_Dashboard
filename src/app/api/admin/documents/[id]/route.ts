@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { autoTranslateDocumentEnglish } from "@/lib/sharon-translation";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin();
     const { id } = await params;
-    const body = await req.json();
+    const body = await autoTranslateDocumentEnglish(await req.json());
     await query(
       `UPDATE slip_processing.documents
        SET title_th=$2, title_en=$3, description_th=$4, description_en=$5, category=$6,

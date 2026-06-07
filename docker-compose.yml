@@ -24,6 +24,7 @@ services:
       LINE_CLIENT_SECRET: ${PROD_LINE_CLIENT_SECRET:?PROD_LINE_CLIENT_SECRET is required}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SHARON_TRANSLATION_URL: http://172.16.1.1:18787/translate
     expose:
     - '3000'
     volumes:

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { announcementDetailUrl, broadcastAnnouncementToLine } from "@/lib/line-announcement-broadcast";
+import { autoTranslateAnnouncementEnglish } from "@/lib/sharon-translation";
 import crypto from "crypto";
 
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const admin = await requireAdmin();
-    const body = await req.json();
+    const body = await autoTranslateAnnouncementEnglish(await req.json());
     const id = crypto.randomUUID();
     const publishedAt = body.is_published === false ? null : new Date().toISOString();
     await query(
