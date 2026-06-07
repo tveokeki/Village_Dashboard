@@ -39,6 +39,15 @@ export default function AnnouncementsPage() {
   }, [activeCategory, fetchAnnouncements]);
 
   useEffect(() => {
+    if (announcements.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const requestedId = params.get("announcement");
+    if (!requestedId) return;
+    const match = announcements.find((announcement) => String(announcement.id) === requestedId);
+    if (match) setSelectedAnnouncement(match);
+  }, [announcements]);
+
+  useEffect(() => {
     if (!selectedAnnouncement) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setSelectedAnnouncement(null);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
+import { announcementDetailUrl, broadcastAnnouncementToLine } from "@/lib/line-announcement-broadcast";
 import crypto from "crypto";
 
 export async function GET() {
@@ -44,14 +45,29 @@ export async function POST(req: NextRequest) {
         admin.linkedUserId || null,
       ]
     );
+    let lineBroadcast = null;
     if (body.is_published !== false) {
+      const announcement = {
+        id,
+        title_th: body.title_th,
+        title_en: body.title_en || null,
+        content_th: body.content_th || "",
+        content_en: body.content_en || null,
+      };
+      const targetUrl = announcementDetailUrl(announcement).replace(
+        (process.env.PUBLIC_ORIGIN || process.env.NEXTAUTH_URL || "https://suan-ake.cloud").replace(/\/$/, ""),
+        "",
+      );
+
       await query(
         `INSERT INTO slip_processing.notifications (id, title_th, title_en, message_th, message_en, type, target_url, created_at)
          VALUES ($1,$2,$3,$4,$5,'announcement',$6,NOW())`,
-        [crypto.randomUUID(), "ประกาศใหม่", "New announcement", body.title_th, body.title_en || body.title_th, `/announcements`]
+        [crypto.randomUUID(), "ประกาศใหม่", "New announcement", body.title_th, body.title_en || body.title_th, targetUrl]
       );
+
+      lineBroadcast = await broadcastAnnouncementToLine(announcement);
     }
-    return NextResponse.json({ success: true, id });
+    return NextResponse.json({ success: true, id, line_broadcast: lineBroadcast });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: err.status || 500 });
   }
