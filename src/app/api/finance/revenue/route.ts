@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     const to = searchParams.get("to")?.trim();
     const limit = parseLimit(searchParams.get("limit"), 100, 500);
     const offset = parseOffset(searchParams.get("offset"));
+    const tab = searchParams.get("tab") || "common";
 
     const params: any[] = [];
     let where = "WHERE mf.deleted_at IS NULL AND m.deleted_at IS NULL";
@@ -134,6 +135,101 @@ export async function GET(req: NextRequest) {
         AND mf.period_start < (date_trunc('year', CURRENT_DATE) + INTERVAL '1 year')::date
       GROUP BY fs.effective_status`;
 
+    // STANDALONE / OTHER REVENUE QUERIES
+    const otherParams: any[] = [];
+    let otherWhere = "WHERE p.deleted_at IS NULL AND p.maintenance_fee_id IS NULL";
+    if (q) {
+      otherParams.push(`%${q}%`);
+      otherWhere += ` AND (m.house_number ILIKE $${otherParams.length} OR m.owner_name ILIKE $${otherParams.length} OR p.notes ILIKE $${otherParams.length} OR p.receipt_number ILIKE $${otherParams.length})`;
+    }
+    if (status && status !== "all") {
+      otherParams.push(status);
+      otherWhere += ` AND p.status = $${otherParams.length}`;
+    }
+    if (paymentType && paymentType !== "all") {
+      otherParams.push(paymentType);
+      otherWhere += ` AND p.payment_type = $${otherParams.length}`;
+    }
+    if (from) {
+      otherParams.push(from);
+      otherWhere += ` AND p.payment_date >= $${otherParams.length}::date`;
+    }
+    if (to) {
+      otherParams.push(to);
+      otherWhere += ` AND p.payment_date <= $${otherParams.length}::date`;
+    }
+
+    const otherRowsSql = `
+      SELECT
+        p.id,
+        p.member_id,
+        COALESCE(m.house_number, '-') AS house_number,
+        COALESCE(m.owner_name, 'ส่วนกลาง (Juristic)') AS owner_name,
+        m.land_type,
+        m.contact_info,
+        NULL::date AS period_start,
+        NULL::date AS period_end,
+        p.payment_date AS due_date,
+        p.amount_paid AS amount_due,
+        p.payment_type AS payment_frequency,
+        p.status AS status,
+        p.status AS effective_status,
+        p.payment_date AS paid_at,
+        p.amount_paid AS amount_paid,
+        p.payment_date AS last_payment_date,
+        jsonb_build_array(
+          jsonb_build_object(
+            'id', p.id,
+            'amount_paid', p.amount_paid,
+            'payment_type', p.payment_type,
+            'payment_date', p.payment_date,
+            'payment_method', p.payment_method,
+            'status', p.status,
+            'receipt_number', p.receipt_number,
+            'transaction_ref_id', COALESCE(
+              substring(p.notes from '"bank_ref_id":\\s*"([^"]+)"'),
+              substring(p.notes from '"promptpay_ref_id":\\s*"([^"]+)"')
+            ),
+            'image_path', CASE 
+              WHEN substring(p.notes from '"payment_slip_id":\\s*"([^"]+)"') IS NOT NULL 
+              THEN '/api/finance/revenue/slip-file?id=' || p.id 
+              ELSE NULL 
+            END
+          )
+        ) AS payments
+      FROM slip_processing.payments p
+      LEFT JOIN slip_processing.members m ON m.id = p.member_id
+      ${otherWhere}
+      ORDER BY p.payment_date DESC, p.created_at DESC
+      LIMIT $${otherParams.length + 1} OFFSET $${otherParams.length + 2}`;
+
+    const otherStatsSql = `
+      SELECT p.status AS status, COUNT(*)::int AS count, COALESCE(SUM(p.amount_paid), 0) AS total_due
+      FROM slip_processing.payments p
+      LEFT JOIN slip_processing.members m ON m.id = p.member_id
+      ${otherWhere}
+      GROUP BY p.status`;
+
+    const currentMonthOtherStatsSql = `
+      SELECT p.payment_type AS status, COUNT(*)::int AS count, COALESCE(SUM(p.amount_paid), 0) AS total_due
+      FROM slip_processing.payments p
+      WHERE p.deleted_at IS NULL
+        AND p.maintenance_fee_id IS NULL
+        AND p.status <> 'voided'
+        AND p.payment_date >= date_trunc('month', CURRENT_DATE)::date
+        AND p.payment_date < (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month')::date
+      GROUP BY p.payment_type`;
+
+    const currentYearOtherStatsSql = `
+      SELECT p.payment_type AS status, COUNT(*)::int AS count, COALESCE(SUM(p.amount_paid), 0) AS total_due
+      FROM slip_processing.payments p
+      WHERE p.deleted_at IS NULL
+        AND p.maintenance_fee_id IS NULL
+        AND p.status <> 'voided'
+        AND p.payment_date >= date_trunc('year', CURRENT_DATE)::date
+        AND p.payment_date < (date_trunc('year', CURRENT_DATE) + INTERVAL '1 year')::date
+      GROUP BY p.payment_type`;
+
     const membersSql = `
       SELECT id, house_number, owner_name, land_type, maintenance_fee
       FROM slip_processing.members
@@ -198,11 +294,24 @@ export async function GET(req: NextRequest) {
         m.owner_name ASC
       LIMIT 1000`;
 
-    const [rows, stats, currentMonthStats, currentYearStats, members, feeOptions] = await Promise.all([
-      query(rowsSql, [...params, limit, offset]),
-      query(statsSql, params),
-      query(currentMonthStatsSql),
-      query(currentYearStatsSql),
+    let rowsPromise, statsPromise, monthPromise, yearPromise;
+    if (tab === "other") {
+      rowsPromise = query(otherRowsSql, [...otherParams, limit, offset]);
+      statsPromise = query(otherStatsSql, otherParams);
+      monthPromise = query(currentMonthOtherStatsSql);
+      yearPromise = query(currentYearOtherStatsSql);
+    } else {
+      rowsPromise = query(rowsSql, [...params, limit, offset]);
+      statsPromise = query(statsSql, params);
+      monthPromise = query(currentMonthStatsSql);
+      yearPromise = query(currentYearStatsSql);
+    }
+
+    const [rows, stats, currentMonthStats, currentYearStats, membersList, feeOptionsList] = await Promise.all([
+      rowsPromise,
+      statsPromise,
+      monthPromise,
+      yearPromise,
       query(membersSql),
       query(feeOptionsSql),
     ]);
@@ -212,8 +321,8 @@ export async function GET(req: NextRequest) {
       stats: stats.rows,
       monthly_stats: currentMonthStats.rows,
       yearly_stats: currentYearStats.rows,
-      members: members.rows,
-      fee_options: feeOptions.rows,
+      members: membersList.rows,
+      fee_options: feeOptionsList.rows,
       limit,
       offset,
     });
@@ -295,13 +404,15 @@ export async function POST(req: NextRequest) {
         finalNotes = cleanPlainNotes || null;
       }
 
+      const memberId = body.member_id && body.member_id !== "null" && body.member_id !== "" ? body.member_id : null;
+
       const result = await client.query(
         `INSERT INTO slip_processing.payments
           (member_id, maintenance_fee_id, amount_paid, payment_type, payment_date, payment_method, bank_statement_line_id, receipt_number, status, notes, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING *`,
         [
-          requiredString(body.member_id, "member_id"),
+          memberId,
           body.maintenance_fee_id || null,
           amountPaid,
           paymentType,
