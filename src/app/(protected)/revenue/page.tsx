@@ -50,6 +50,7 @@ export default function RevenuePage() {
   const [uploadedSlipId, setUploadedSlipId] = useState<string | null>(null);
   const [uploadingSlip, setUploadingSlip] = useState(false);
   const [uploadedSlipName, setUploadedSlipName] = useState<string | null>(null);
+  const [addPaymentType, setAddPaymentType] = useState<string>("monthly");
 
   const [viewingRow, setViewingRow] = useState<any | null>(null);
   const [viewingPaymentIndex, setViewingPaymentIndex] = useState<number>(0);
@@ -201,9 +202,15 @@ export default function RevenuePage() {
         payload.maintenance_fee_id ||= chosenFee.id;
         payload.amount_paid ||= chosenFee.amount_due;
         payload.payment_type ||= chosenFee.payment_frequency;
+      } else if (selectedMember) {
+        payload.member_id ||= selectedMember.id;
       }
-      if (!payload.maintenance_fee_id) {
+      if (payload.payment_type === "monthly" && !payload.maintenance_fee_id) {
         setMessage(t("กรุณาค้นหาและเลือกรอบบิลก่อนบันทึก", "Please search and select a bill before saving"));
+        return;
+      }
+      if (!payload.member_id) {
+        setMessage(t("กรุณาค้นหาและเลือกสมาชิก/บ้านเลขที่ก่อนบันทึก", "Please search and select a member/house before saving"));
         return;
       }
       if (uploadedSlipId) {
@@ -287,39 +294,75 @@ export default function RevenuePage() {
         <div className="flex items-center justify-between mb-4"><h2 className="font-semibold text-surface-900">{mode === "payment" ? t("บันทึกการชำระเงิน", "Record payment") : mode === "member" ? t("เพิ่มสมาชิก", "Add member") : t("เพิ่มรอบค่าส่วนกลาง", "Add maintenance fee")}</h2><button onClick={() => { setMode(null); setBillSearch(""); setSelected(null); setMemberSearch(""); setSelectedMember(null); }} className="text-sm text-surface-500 hover:text-surface-800">✕</button></div>
         {mode === "payment" && (
           <form onSubmit={(e) => submit(e, "payment")} className="grid md:grid-cols-3 gap-3">
-            <div className="md:col-span-3 space-y-2">
-              <label className="block text-xs font-medium text-surface-600">{t("ค้นหาและเลือกรอบบิล", "Search and select bill")}</label>
-              <input 
-                className="input-field" 
-                value={billSearch} 
-                onChange={(e) => { setBillSearch(e.target.value); setSelected(null); }} 
-                placeholder={t("พิมพ์ชื่อเจ้าของ / บ้านเลขที่ / รอบบิล / ยอดเงิน เพื่อกรองรายการ", "Type owner / house no. / period / amount to filter bills")} 
-                autoComplete="off" 
-              />
-              <input type="hidden" name="maintenance_fee_id" value={selected?.id || ""} />
-              <div className="rounded-xl border border-surface-200 bg-surface-50 max-h-72 overflow-y-auto">
-                <div className="px-3 py-2 text-xs text-surface-500 border-b border-surface-200">
-                  {selected ? t("เลือกแล้ว", "Selected") : billSearch.trim() ? t(`แสดงผลสูงสุด ${filteredFeeOptions.length} รายการ`, `Showing up to ${filteredFeeOptions.length} matches`) : t("เริ่มพิมพ์เพื่อค้นหารอบบิล ไม่ต้อง scroll รายการทั้งหมด", "Start typing to search bills without scrolling the full list")}
-                </div>
-                {filteredFeeOptions.length > 0 ? (
-                  filteredFeeOptions.map((fee: any) => (
-                    <button 
-                      type="button" 
-                      key={fee.id} 
-                      onClick={() => { setSelected(fee); setBillSearch(feeLabel(fee)); }} 
-                      className={`w-full text-left px-3 py-2 text-sm border-b border-surface-100 last:border-b-0 hover:bg-white ${selected?.id === fee.id ? "bg-brand-50 text-brand-800" : "bg-transparent text-surface-700"}`}
-                    >
-                      <div className="font-medium">{fee.owner_name || "-"} — {t("บ้าน", "House")} {fee.house_number}</div>
-                      <div className="text-xs text-surface-500">{formatDate(fee.period_start, lang)}-{formatDate(fee.period_end, lang)} • {formatMoney(fee.amount_due, lang)}</div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-3 py-4 text-sm text-surface-500">
-                    {billSearch.trim() ? t("ไม่พบรอบบิลที่ตรงกับคำค้น", "No bills match this search") : t("ตัวอย่าง: พิมพ์ 39/2 หรือชื่อเจ้าของ", "Example: type 39/2 or owner name")}
+            {addPaymentType === "monthly" ? (
+              <div className="md:col-span-3 space-y-2">
+                <label className="block text-xs font-medium text-surface-600">{t("ค้นหาและเลือกรอบบิล", "Search and select bill")}</label>
+                <input 
+                  className="input-field" 
+                  value={billSearch} 
+                  onChange={(e) => { setBillSearch(e.target.value); setSelected(null); }} 
+                  placeholder={t("พิมพ์ชื่อเจ้าของ / บ้านเลขที่ / รอบบิล / ยอดเงิน เพื่อกรองรายการ", "Type owner / house no. / period / amount to filter bills")} 
+                  autoComplete="off" 
+                />
+                <input type="hidden" name="maintenance_fee_id" value={selected?.id || ""} />
+                <div className="rounded-xl border border-surface-200 bg-surface-50 max-h-72 overflow-y-auto">
+                  <div className="px-3 py-2 text-xs text-surface-500 border-b border-surface-200">
+                    {selected ? t("เลือกแล้ว", "Selected") : billSearch.trim() ? t(`แสดงผลสูงสุด ${filteredFeeOptions.length} รายการ`, `Showing up to ${filteredFeeOptions.length} matches`) : t("เริ่มพิมพ์เพื่อค้นหารอบบิล ไม่ต้อง scroll รายการทั้งหมด", "Start typing to search bills without scrolling the full list")}
                   </div>
-                )}
+                  {filteredFeeOptions.length > 0 ? (
+                    filteredFeeOptions.map((fee: any) => (
+                      <button 
+                        type="button" 
+                        key={fee.id} 
+                        onClick={() => { setSelected(fee); setBillSearch(feeLabel(fee)); }} 
+                        className={`w-full text-left px-3 py-2 text-sm border-b border-surface-100 last:border-b-0 hover:bg-white ${selected?.id === fee.id ? "bg-brand-50 text-brand-800" : "bg-transparent text-surface-700"}`}
+                      >
+                        <div className="font-medium">{fee.owner_name || "-"} — {t("บ้าน", "House")} {fee.house_number}</div>
+                        <div className="text-xs text-surface-500">{formatDate(fee.period_start, lang)}-{formatDate(fee.period_end, lang)} • {formatMoney(fee.amount_due, lang)}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-sm text-surface-500">
+                      {billSearch.trim() ? t("ไม่พบรอบบิลที่ตรงกับคำค้น", "No bills match this search") : t("ตัวอย่าง: พิมพ์ 39/2 หรือชื่อเจ้าของ", "Example: type 39/2 or owner name")}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="md:col-span-3 space-y-2">
+                <label className="block text-xs font-medium text-surface-600">{t("ค้นหาและเลือกสมาชิก", "Search and select member")}</label>
+                <input 
+                  className="input-field" 
+                  value={memberSearch} 
+                  onChange={(e) => { setMemberSearch(e.target.value); setSelectedMember(null); }} 
+                  placeholder={t("พิมพ์ชื่อเจ้าของ / บ้านเลขที่ / ยอดค่าส่วนกลาง เพื่อกรองสมาชิก", "Type owner / house no. / maintenance fee to filter members")} 
+                  autoComplete="off" 
+                />
+                <input type="hidden" name="member_id" value={selectedMember?.id || ""} />
+                <div className="rounded-xl border border-surface-200 bg-surface-50 max-h-72 overflow-y-auto">
+                  <div className="px-3 py-2 text-xs text-surface-500 border-b border-surface-200">
+                    {selectedMember ? t("เลือกแล้ว", "Selected") : memberSearch.trim() ? t(`แสดงผลสูงสุด ${filteredMembers.length} รายการ`, `Showing up to ${filteredMembers.length} matches`) : t("เริ่มพิมพ์เพื่อค้นหาสมาชิก ไม่ต้อง scroll รายการทั้งหมด", "Start typing to search members without scrolling the full list")}
+                  </div>
+                  {filteredMembers.length > 0 ? (
+                    filteredMembers.map((member: any) => (
+                      <button 
+                        type="button" 
+                        key={member.id} 
+                        onClick={() => { setSelectedMember(member); setMemberSearch(memberLabel(member)); }} 
+                        className={`w-full text-left px-3 py-2 text-sm border-b border-surface-100 last:border-b-0 hover:bg-white ${selectedMember?.id === member.id ? "bg-brand-50 text-brand-800" : "bg-transparent text-surface-700"}`}
+                      >
+                        <div className="font-medium">{member.owner_name || "-"} — {t("บ้าน", "House")} {member.house_number}</div>
+                        <div className="text-xs text-surface-500">{member.maintenance_fee ? formatMoney(member.maintenance_fee, lang) : t("ไม่มียอดค่าส่วนกลางในข้อมูลสมาชิก", "No maintenance fee on member record")}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-sm text-surface-500">
+                      {memberSearch.trim() ? t("ไม่พบสมาชิกที่ตรงกับคำค้น", "No members match this search") : t("ตัวอย่าง: พิมพ์ 39/2 หรือชื่อเจ้าของ", "Example: type 39/2 or owner name")}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="block text-xs font-medium text-surface-600">{t("จำนวนเงิน", "Amount")}</label>
@@ -334,15 +377,26 @@ export default function RevenuePage() {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-surface-600">{t("ประเภทรอบบิล", "Payment Type")}</label>
+              <label className="block text-xs font-medium text-surface-600">{t("ประเภทรายรับ", "Payment Type")}</label>
               <select 
                 key={`type-${selected?.id || "none"}`} 
                 name="payment_type" 
-                defaultValue={selected?.payment_frequency || "monthly"} 
-                className="input-field"
+                value={addPaymentType}
+                onChange={(e) => {
+                  setAddPaymentType(e.target.value);
+                  setSelected(null);
+                  setBillSearch("");
+                  setSelectedMember(null);
+                  setMemberSearch("");
+                }} 
+                className="input-field font-semibold"
               >
-                <option value="monthly">{t("รายเดือน", "Monthly")}</option>
-                <option value="village_fund_2569">{t("เงินทุนเพื่อพัฒนาหมู่บ้านปี 2569", "Village Development Fund 2026")}</option>
+                <option value="monthly">{t("ค่าส่วนกลางรายเดือน", "Monthly Common Fee")}</option>
+                <option value="village_fund_2569">{t("ค่ากองทุนพัฒนาหมู่บ้านปี 2569", "Village Development Fund 2026")}</option>
+                <option value="deposit_interest">{t("ดอกเบี้ยเงินฝาก", "Bank Deposit Interest")}</option>
+                <option value="construction_deposit">{t("ค่าประกันการก่อสร้าง", "Construction Deposit")}</option>
+                <option value="fine">{t("ค่าปรับ", "Fine / Penalty")}</option>
+                <option value="other">{t("รายรับอื่น ๆ", "Other Revenue")}</option>
               </select>
             </div>
 
