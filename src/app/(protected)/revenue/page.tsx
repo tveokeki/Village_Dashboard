@@ -32,6 +32,7 @@ function getDefaultRevenueFilters() {
 export default function RevenuePage() {
   const { lang } = useLanguage();
   const t = (th: string, en: string) => (lang === "th" ? th : en);
+  const [activeTab, setActiveTab] = useState<"common" | "other">("common");
   const [rows, setRows] = useState<any[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [yearlyStats, setYearlyStats] = useState<any[]>([]);
@@ -75,6 +76,7 @@ export default function RevenuePage() {
     setLoading(true);
     setMessage("");
     const params = new URLSearchParams();
+    params.set("tab", activeTab);
     Object.entries(filters).forEach(([k, v]) => { if (v && v !== "all") params.set(k, v); });
     try {
       const res = await fetch(uatPath(`/api/finance/revenue?${params.toString()}`), { cache: "no-store" });
@@ -92,7 +94,7 @@ export default function RevenuePage() {
     }
   }
 
-  useEffect(() => { const timer = window.setTimeout(loadRevenue, 250); return () => window.clearTimeout(timer); }, [filters]);
+  useEffect(() => { const timer = window.setTimeout(loadRevenue, 250); return () => window.clearTimeout(timer); }, [filters, activeTab]);
 
   const summarizeStats = (items: any[]) => {
     const byStatus: Record<string, any> = {};
@@ -106,6 +108,40 @@ export default function RevenuePage() {
 
   const totals = useMemo(() => summarizeStats(monthlyStats), [monthlyStats]);
   const yearlyTotals = useMemo(() => summarizeStats(yearlyStats), [yearlyStats]);
+
+  const otherTotals = useMemo(() => {
+    const byType: Record<string, any> = {};
+    monthlyStats.forEach((s) => { byType[s.status] = s; });
+    return {
+      interest: byType.deposit_interest || { count: 0, total_due: 0 },
+      deposit: byType.construction_deposit || { count: 0, total_due: 0 },
+      fine: byType.fine || { count: 0, total_due: 0 },
+      other: byType.other || { count: 0, total_due: 0 },
+    };
+  }, [monthlyStats]);
+
+  const otherYearlyTotals = useMemo(() => {
+    const byType: Record<string, any> = {};
+    yearlyStats.forEach((s) => { byType[s.status] = s; });
+    return {
+      interest: byType.deposit_interest || { count: 0, total_due: 0 },
+      deposit: byType.construction_deposit || { count: 0, total_due: 0 },
+      fine: byType.fine || { count: 0, total_due: 0 },
+      other: byType.other || { count: 0, total_due: 0 },
+    };
+  }, [yearlyStats]);
+
+  function paymentTypeLabel(type: string) {
+    switch (type) {
+      case "monthly": return t("ค่าส่วนกลางรายเดือน", "Monthly Common Fee");
+      case "village_fund_2569": return t("ค่ากองทุนพัฒนาหมู่บ้านปี 2569", "Village Development Fund 2026");
+      case "deposit_interest": return t("ดอกเบี้ยเงินฝาก", "Bank Deposit Interest");
+      case "construction_deposit": return t("ค่าประกันการก่อสร้าง", "Construction Deposit");
+      case "fine": return t("ค่าปรับ", "Fine / Penalty");
+      case "other": return t("รายรับอื่น ๆ", "Other Revenue");
+      default: return type;
+    }
+  }
 
 
   function feeLabel(fee: any) {
@@ -162,6 +198,15 @@ export default function RevenuePage() {
     setMessage("");
     setUploadedSlipId(null);
     setUploadedSlipName(null);
+    if (!fee) {
+      if (activeTab === "other") {
+        setAddPaymentType("deposit_interest");
+      } else {
+        setAddPaymentType("monthly");
+      }
+    } else {
+      setAddPaymentType(fee.payment_frequency || "monthly");
+    }
   }
 
   async function handleSlipUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -195,24 +240,25 @@ export default function RevenuePage() {
     const f = new FormData(formEl);
     const payload: any = { action };
     f.forEach((value, key) => { if (String(value).trim()) payload[key] = value; });
+    
     if (action === "payment") {
-      const chosenFee = selected || feeOptions.find((fee) => fee.id === payload.maintenance_fee_id);
-      if (chosenFee) {
-        payload.member_id ||= chosenFee.member_id;
-        payload.maintenance_fee_id ||= chosenFee.id;
-        payload.amount_paid ||= chosenFee.amount_due;
-        payload.payment_type ||= chosenFee.payment_frequency;
-      } else if (selectedMember) {
-        payload.member_id ||= selectedMember.id;
+      const isFeeType = payload.payment_type === "monthly" || payload.payment_type === "village_fund_2569";
+      if (isFeeType) {
+        const chosenFee = selected || feeOptions.find((fee) => fee.id === payload.maintenance_fee_id);
+        if (chosenFee) {
+          payload.member_id ||= chosenFee.member_id;
+          payload.maintenance_fee_id ||= chosenFee.id;
+          payload.amount_paid ||= chosenFee.amount_due;
+        }
+        if (!payload.maintenance_fee_id) {
+          setMessage(t("กรุณาค้นหาและเลือกรอบบิลก่อนบันทึก", "Please search and select a bill before saving"));
+          return;
+        }
+      } else {
+        payload.member_id = selectedMember?.id || null;
+        payload.maintenance_fee_id = null;
       }
-      if (payload.payment_type === "monthly" && !payload.maintenance_fee_id) {
-        setMessage(t("กรุณาค้นหาและเลือกรอบบิลก่อนบันทึก", "Please search and select a bill before saving"));
-        return;
-      }
-      if (!payload.member_id) {
-        setMessage(t("กรุณาค้นหาและเลือกสมาชิก/บ้านเลขที่ก่อนบันทึก", "Please search and select a member/house before saving"));
-        return;
-      }
+      
       if (uploadedSlipId) {
         payload.payment_slip_id = uploadedSlipId;
       }
@@ -242,27 +288,77 @@ export default function RevenuePage() {
 
   return (
     <div className="py-6 min-w-0">
-      <FinancePageHeader title={t("รายรับค่าส่วนกลาง", "Revenue")} description={t("ติดตามค่าส่วนกลาง รายการค้างชำระ และบันทึกการชำระเงิน", "Track maintenance fees, outstanding balances, and payment records")}>
-        <button onClick={() => openPayment()} className="btn-primary w-full sm:w-auto">+ {t("บันทึกชำระเงิน", "Record payment")}</button>
-        <button onClick={() => { setMode("fee"); setSelectedMember(null); setMemberSearch(""); setSuccess(""); setMessage(""); }} className="px-4 py-2 rounded-xl border border-surface-200 bg-white text-sm font-medium text-surface-700 hover:bg-surface-50">+ {t("รอบค่าส่วนกลาง", "Fee")}</button>
+      <FinancePageHeader 
+        title={activeTab === "common" ? t("รายรับค่าส่วนกลาง", "Common Fee Revenue") : t("รายรับประเภทอื่น ๆ", "Other Revenue")} 
+        description={activeTab === "common" ? t("ติดตามค่าส่วนกลาง รายการค้างชำระ และบันทึกการชำระเงิน", "Track maintenance fees, outstanding balances, and payment records") : t("บริหารจัดการรายรับดอกเบี้ยเงินฝาก ค่าประกันผลงาน เงินปรับ และรายรับเบ็ดเตล็ดส่วนกลาง", "Manage bank interest, construction deposits, fines, and miscellaneous central revenues")}
+      >
+        <button onClick={() => openPayment()} className="btn-primary w-full sm:w-auto">
+          + {activeTab === "common" ? t("บันทึกชำระค่าส่วนกลาง", "Record Common Fee") : t("บันทึกรายรับอื่น ๆ (เช่น ดอกเบี้ย)", "Record Other Revenue")}
+        </button>
+        {activeTab === "common" && (
+          <button onClick={() => { setMode("fee"); setSelectedMember(null); setMemberSearch(""); setSuccess(""); setMessage(""); }} className="px-4 py-2 rounded-xl border border-surface-200 bg-white text-sm font-medium text-surface-700 hover:bg-surface-50">+ {t("รอบค่าส่วนกลาง", "Fee")}</button>
+        )}
       </FinancePageHeader>
+
+      {/* Modern Tab Switcher */}
+      <div className="flex gap-2 mb-6 border-b border-surface-200 pb-px">
+        <button 
+          onClick={() => {
+            setActiveTab("common");
+            setFilters(getDefaultRevenueFilters());
+          }}
+          className={`px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+            activeTab === "common" 
+              ? "border-brand-500 text-brand-600 font-bold" 
+              : "border-transparent text-surface-500 hover:text-surface-800"
+          }`}
+        >
+          📄 {t("รายรับค่าส่วนกลาง", "Common Fee Revenue")}
+        </button>
+        <button 
+          onClick={() => {
+            setActiveTab("other");
+            setFilters(getDefaultRevenueFilters());
+          }}
+          className={`px-5 py-2.5 text-sm font-semibold transition-all border-b-2 ${
+            activeTab === "other" 
+              ? "border-brand-500 text-brand-600 font-bold" 
+              : "border-transparent text-surface-500 hover:text-surface-800"
+          }`}
+        >
+          🏦 {t("รายรับประเภทอื่น ๆ", "Other Revenue")}
+        </button>
+      </div>
 
       {message && <div className="mb-4 rounded-xl border px-4 py-3 text-sm bg-red-50 border-red-200 text-red-700">{message}</div>}
       {success && <div className="mb-4 rounded-xl border px-4 py-3 text-sm bg-brand-50 border-brand-100 text-brand-700">{success}</div>}
 
-      <div className="mb-2 text-sm font-semibold text-surface-700">{t("สรุปเดือนปัจจุบัน", "Current month summary")}</div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <KpiCard label={t("รอชำระ (เดือนนี้)", "Pending (this month)")} value={totals.pending.count || 0} hint={formatMoney(totals.pending.total_due, lang)} tone="amber" />
-        <KpiCard label={t("เกินกำหนด (เดือนนี้)", "Overdue (this month)")} value={totals.overdue.count || 0} hint={formatMoney(totals.overdue.total_due, lang)} tone="red" />
-        <KpiCard label={t("ชำระแล้ว (เดือนนี้)", "Paid (this month)")} value={totals.paid.count || 0} hint={formatMoney(totals.paid.total_due, lang)} tone="emerald" />
-      </div>
+      {activeTab === "common" ? (
+        <>
+          <div className="mb-2 text-sm font-semibold text-surface-700">{t("สรุปเดือนปัจจุบัน", "Current month summary")}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <KpiCard label={t("รอชำระ (เดือนนี้)", "Pending (this month)")} value={totals.pending.count || 0} hint={formatMoney(totals.pending.total_due, lang)} tone="amber" />
+            <KpiCard label={t("เกินกำหนด (เดือนนี้)", "Overdue (this month)")} value={totals.overdue.count || 0} hint={formatMoney(totals.overdue.total_due, lang)} tone="red" />
+            <KpiCard label={t("ชำระแล้ว (เดือนนี้)", "Paid (this month)")} value={totals.paid.count || 0} hint={formatMoney(totals.paid.total_due, lang)} tone="emerald" />
+          </div>
 
-      <div className="mb-2 text-sm font-semibold text-surface-700">{t("สรุปปีปัจจุบัน", "Current year summary")}</div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        <KpiCard label={t("รอชำระ (ปีนี้)", "Pending (this year)")} value={yearlyTotals.pending.count || 0} hint={formatMoney(yearlyTotals.pending.total_due, lang)} tone="amber" />
-        <KpiCard label={t("เกินกำหนด (ปีนี้)", "Overdue (this year)")} value={yearlyTotals.overdue.count || 0} hint={formatMoney(yearlyTotals.overdue.total_due, lang)} tone="red" />
-        <KpiCard label={t("ชำระแล้ว (ปีนี้)", "Paid (this year)")} value={yearlyTotals.paid.count || 0} hint={formatMoney(yearlyTotals.paid.total_due, lang)} tone="emerald" />
-      </div>
+          <div className="mb-2 text-sm font-semibold text-surface-700">{t("สรุปปีปัจจุบัน", "Current year summary")}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <KpiCard label={t("รอชำระ (ปีนี้)", "Pending (this year)")} value={yearlyTotals.pending.count || 0} hint={formatMoney(yearlyTotals.pending.total_due, lang)} tone="amber" />
+            <KpiCard label={t("เกินกำหนด (ปีนี้)", "Overdue (this year)")} value={yearlyTotals.overdue.count || 0} hint={formatMoney(yearlyTotals.overdue.total_due, lang)} tone="red" />
+            <KpiCard label={t("ชำระแล้ว (ปีนี้)", "Paid (this year)")} value={yearlyTotals.paid.count || 0} hint={formatMoney(yearlyTotals.paid.total_due, lang)} tone="emerald" />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="mb-2 text-sm font-semibold text-surface-700">{t("สรุปรายรับเบ็ดเตล็ดประจำปี", "Annual Other Revenue Summary")}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            <KpiCard label={t("ดอกเบี้ยธนาคาร (ปีนี้)", "Bank Interest (this year)")} value={otherYearlyTotals.interest.count || 0} hint={formatMoney(otherYearlyTotals.interest.total_due, lang)} tone="emerald" />
+            <KpiCard label={t("เงินค้ำประกัน (ปีนี้)", "Construction Deposits (this year)")} value={otherYearlyTotals.deposit.count || 0} hint={formatMoney(otherYearlyTotals.deposit.total_due, lang)} tone="amber" />
+            <KpiCard label={t("ค่าปรับ & อื่น ๆ (ปีนี้)", "Fines & Others (this year)")} value={(otherYearlyTotals.fine.count || 0) + (otherYearlyTotals.other.count || 0)} hint={formatMoney((otherYearlyTotals.fine.total_due || 0) + (otherYearlyTotals.other.total_due || 0), lang)} tone="emerald" />
+          </div>
+        </>
+      )}
 
       <div className="card mb-6">
         <div className="grid md:grid-cols-7 gap-3 items-end">
@@ -330,7 +426,16 @@ export default function RevenuePage() {
               </div>
             ) : (
               <div className="md:col-span-3 space-y-2">
-                <label className="block text-xs font-medium text-surface-600">{t("ค้นหาและเลือกสมาชิก", "Search and select member")}</label>
+                <div className="flex justify-between items-center">
+                  <label className="block text-xs font-medium text-surface-600">
+                    {t("ค้นหาและเลือกสมาชิก", "Search and select member")} {addPaymentType === "deposit_interest" || addPaymentType === "other" ? t("(ไม่เจาะจงรายบุคคล/เว้นว่างได้)", "(Optional)") : ""}
+                  </label>
+                  {selectedMember && (
+                    <button type="button" onClick={() => { setSelectedMember(null); setMemberSearch(""); }} className="text-[10px] text-red-500 hover:underline font-semibold">
+                      {t("✕ ล้างการเลือก", "✕ Clear selection")}
+                    </button>
+                  )}
+                </div>
                 <input 
                   className="input-field" 
                   value={memberSearch} 
@@ -637,21 +742,186 @@ export default function RevenuePage() {
       </div>}
 
       <div className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
-        {loading ? <div className="text-center py-12 text-surface-500">{t("กำลังโหลด...", "Loading...")}</div> : rows.length === 0 ? <div className="text-center py-12 text-surface-500">{t("ยังไม่มีรายการรายรับ", "No revenue records yet")}</div> : <>
-          <div className="hidden lg:block overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-surface-50 text-surface-500"><tr><th className="p-3 text-left">{t("บ้าน", "House")}</th><th className="p-3 text-left">{t("เจ้าของ", "Owner")}</th><th className="p-3 text-left">{t("รอบบิล", "Period")}</th><th className="p-3 text-left">{t("เลขที่รายการ", "Ref ID")}</th><th className="p-3 text-right">{t("ยอดเรียกเก็บ", "Due")}</th><th className="p-3 text-right">{t("ชำระแล้ว", "Paid")}</th><th className="p-3 text-left">{t("สถานะ", "Status")}</th><th className="p-3"></th></tr></thead><tbody>{rows.map((r) => {
-            const isPaid = (r.effective_status || r.status) === "paid";
-            return (
-              <tr key={r.id} className="border-t border-surface-100 hover:bg-surface-50">
-                <td className="p-3 font-medium">{r.house_number}</td>
-                <td className="p-3">{r.owner_name || "-"}</td>
-                <td className="p-3">{formatDate(r.period_start, lang)} - {formatDate(r.period_end, lang)}</td>
-                <td className="p-3 font-mono text-xs text-surface-500">{r.payments?.[0]?.transaction_ref_id || "-"}</td>
-                <td className="p-3 text-right tabular-nums">{formatMoney(r.amount_due, lang)}</td>
-                <td className="p-3 text-right tabular-nums">{formatMoney(r.amount_paid, lang)}</td>
-                <td className="p-3">
-                  <FinanceStatusBadge status={r.effective_status || r.status} lang={lang} />
-                </td>
-                <td className="p-3 text-right">
+        {loading ? <div className="text-center py-12 text-surface-500">{t("กำลังโหลด...", "Loading...")}</div> : rows.length === 0 ? <div className="text-center py-12 text-surface-500">{activeTab === "common" ? t("ยังไม่มีรายการรายรับส่วนกลาง", "No common fee records yet") : t("ยังไม่มีรายการรายรับประเภทอื่น", "No other revenue records yet")}</div> : <>
+          {/* Desktop view */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-surface-50 text-surface-500">
+                {activeTab === "common" ? (
+                  <tr>
+                    <th className="p-3 text-left">{t("บ้าน", "House")}</th>
+                    <th className="p-3 text-left">{t("เจ้าของ", "Owner")}</th>
+                    <th className="p-3 text-left">{t("รอบบิล", "Period")}</th>
+                    <th className="p-3 text-left">{t("เลขที่รายการ", "Ref ID")}</th>
+                    <th className="p-3 text-right">{t("ยอดเรียกเก็บ", "Due")}</th>
+                    <th className="p-3 text-right">{t("ชำระแล้ว", "Paid")}</th>
+                    <th className="p-3 text-left">{t("สถานะ", "Status")}</th>
+                    <th className="p-3"></th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th className="p-3 text-left">{t("วันที่ชำระ", "Date")}</th>
+                    <th className="p-3 text-left">{t("หมวดหมู่", "Category")}</th>
+                    <th className="p-3 text-left">{t("รายละเอียด / หมายเหตุ", "Details / Notes")}</th>
+                    <th className="p-3 text-left">{t("ผู้ชำระเงิน/อ้างอิงบ้าน", "Payer/House")}</th>
+                    <th className="p-3 text-right">{t("จำนวนเงิน", "Amount")}</th>
+                    <th className="p-3 text-left">{t("เลขที่ใบเสร็จ", "Receipt No.")}</th>
+                    <th className="p-3 text-left">{t("สถานะ", "Status")}</th>
+                    <th className="p-3"></th>
+                  </tr>
+                )}
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const isPaid = (r.effective_status || r.status) === "paid" || r.status === "confirmed" || r.status === "reconciled";
+                  const plainNotes = r.payments?.[0]?.notes
+                    ? r.payments[0].notes.replace(/\{"payment_slip_id":\s*"[^"]+"[^}]*\}/, "")
+                                         .replace(/\{"bank_ref_id":\s*"[^"]+"[^}]*\}/, "")
+                                         .replace(/\{"promptpay_ref_id":\s*"[^"]+"[^}]*\}/, "")
+                                         .trim()
+                    : "";
+                  
+                  return (
+                    <tr key={r.id} className="border-t border-surface-100 hover:bg-surface-50">
+                      {activeTab === "common" ? (
+                        <>
+                          <td className="p-3 font-medium">{r.house_number}</td>
+                          <td className="p-3">{r.owner_name || "-"}</td>
+                          <td className="p-3">{r.period_start ? `${formatDate(r.period_start, lang)} - ${formatDate(r.period_end, lang)}` : "-"}</td>
+                          <td className="p-3 font-mono text-xs text-surface-500">{r.payments?.[0]?.transaction_ref_id || "-"}</td>
+                          <td className="p-3 text-right tabular-nums">{formatMoney(r.amount_due, lang)}</td>
+                          <td className="p-3 text-right tabular-nums">{formatMoney(r.amount_paid, lang)}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="p-3 font-medium">{formatDate(r.due_date, lang)}</td>
+                          <td className="p-3 font-semibold text-emerald-800">{paymentTypeLabel(r.payment_frequency)}</td>
+                          <td className="p-3 max-w-[240px] truncate text-surface-600" title={plainNotes || "-"}>{plainNotes || "-"}</td>
+                          <td className="p-3 font-medium">
+                            {r.house_number && r.house_number !== "-" ? (
+                              <span>{t("บ้าน", "House")} {r.house_number} ({r.owner_name})</span>
+                            ) : (
+                              <span className="text-surface-400 italic">-- {t("ส่วนกลาง", "Central / Juristic")} --</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-bold text-surface-900 tabular-nums">{formatMoney(r.amount_paid, lang)}</td>
+                          <td className="p-3 font-mono text-xs text-surface-500">{r.payments?.[0]?.receipt_number || "-"}</td>
+                        </>
+                      )}
+                      <td className="p-3">
+                        <FinanceStatusBadge status={r.effective_status || r.status} lang={lang} />
+                      </td>
+                      <td className="p-3 text-right">
+                        {isPaid ? (
+                          <button 
+                            onClick={() => {
+                              setViewingRow(r);
+                              setViewingPaymentIndex(0);
+                              setImgZoom(1);
+                              setImgRotate(0);
+                            }} 
+                            className="text-emerald-600 font-semibold hover:underline"
+                          >
+                            {t("ดูหลักฐาน", "View details")}
+                          </button>
+                        ) : (
+                          <button onClick={() => openPayment(r)} className="text-brand-600 font-medium hover:underline">
+                            {t("บันทึกชำระ", "Record")}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile view */}
+          <div className="lg:hidden divide-y divide-surface-100">
+            {rows.map((r) => {
+              const isPaid = (r.effective_status || r.status) === "paid" || r.status === "confirmed" || r.status === "reconciled";
+              const plainNotes = r.payments?.[0]?.notes
+                ? r.payments[0].notes.replace(/\{"payment_slip_id":\s*"[^"]+"[^}]*\}/, "")
+                                     .replace(/\{"bank_ref_id":\s*"[^"]+"[^}]*\}/, "")
+                                     .replace(/\{"promptpay_ref_id":\s*"[^"]+"[^}]*\}/, "")
+                                     .trim()
+                : "";
+
+              return (
+                <div key={r.id} className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      {activeTab === "common" ? (
+                        <>
+                          <div className="font-semibold text-surface-900">{t("บ้าน", "House")} {r.house_number}</div>
+                          <div className="text-sm text-surface-500 break-words">{r.owner_name || "-"}</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="font-bold text-emerald-800 text-base">{paymentTypeLabel(r.payment_frequency)}</div>
+                          <div className="text-xs text-surface-400 font-mono mt-0.5">{formatDate(r.due_date, lang)}</div>
+                        </>
+                      )}
+                    </div>
+                    <FinanceStatusBadge status={r.effective_status || r.status} lang={lang} />
+                  </div>
+
+                  {activeTab === "common" ? (
+                    <>
+                      <div className="mt-3 rounded-xl bg-surface-50 border border-surface-100 px-3 py-2 text-sm">
+                        <span className="text-surface-500">{t("รอบบิล", "Period")}</span>
+                        <div className="font-semibold text-surface-900">{r.period_start ? `${formatDate(r.period_start, lang)} - ${formatDate(r.period_end, lang)}` : "-"}</div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-surface-500">{t("ยอด", "Due")}</span>
+                          <div className="font-semibold">{formatMoney(r.amount_due, lang)}</div>
+                        </div>
+                        <div>
+                          <span className="text-surface-500">{t("ชำระ", "Paid")}</span>
+                          <div className="font-semibold">{formatMoney(r.amount_paid, lang)}</div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-3 rounded-xl bg-surface-50 border border-surface-100 px-3 py-2 text-sm">
+                        <span className="text-surface-500">{t("ผู้ชำระเงิน/อ้างอิงบ้าน", "Payer/House")}</span>
+                        <div className="font-semibold text-surface-900">
+                          {r.house_number && r.house_number !== "-" ? `${t("บ้าน", "House")} ${r.house_number} (${r.owner_name})` : t("ส่วนกลาง", "Central / Juristic")}
+                        </div>
+                      </div>
+                      {plainNotes && (
+                        <div className="mt-2 rounded-xl bg-surface-50 border border-surface-100 px-3 py-2 text-sm">
+                          <span className="text-surface-500">{t("รายละเอียด", "Details")}</span>
+                          <div className="font-medium text-surface-700 break-words">{plainNotes}</div>
+                        </div>
+                      )}
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-surface-500">{t("จำนวนเงิน", "Amount")}</span>
+                          <div className="font-bold text-surface-900 text-base">{formatMoney(r.amount_paid, lang)}</div>
+                        </div>
+                        {r.payments?.[0]?.receipt_number && (
+                          <div>
+                            <span className="text-surface-500">{t("เลขที่ใบเสร็จ", "Receipt No.")}</span>
+                            <div className="font-mono text-xs font-semibold text-surface-700 break-all">{r.payments[0].receipt_number}</div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {r.payments?.[0]?.transaction_ref_id && (
+                    <div className="mt-3 rounded-xl bg-surface-50 border border-surface-100 px-3 py-2 text-sm">
+                      <span className="text-surface-500">{t("เลขที่รายการ", "Ref ID")}</span>
+                      <div className="font-mono text-xs font-semibold text-surface-700 break-all">
+                        {r.payments[0].transaction_ref_id}
+                      </div>
+                    </div>
+                  )}
+
                   {isPaid ? (
                     <button 
                       onClick={() => {
@@ -660,72 +930,19 @@ export default function RevenuePage() {
                         setImgZoom(1);
                         setImgRotate(0);
                       }} 
-                      className="text-emerald-600 font-semibold hover:underline"
+                      className="mt-3 w-full rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 py-2.5 text-sm font-semibold hover:bg-emerald-100/50 transition-colors"
                     >
-                      {t("ดูหลักฐาน", "View details")}
+                      {t("ดูหลักฐานการชำระเงิน", "View payment details")}
                     </button>
                   ) : (
-                    <button onClick={() => openPayment(r)} className="text-brand-600 font-medium hover:underline">
-                      {t("บันทึกชำระ", "Record")}
+                    <button onClick={() => openPayment(r)} className="mt-3 w-full rounded-xl bg-brand-50 text-brand-700 py-2.5 text-sm font-medium hover:bg-brand-100/50 transition-colors">
+                      {t("บันทึกชำระ", "Record payment")}
                     </button>
                   )}
-                </td>
-              </tr>
-            );
-          })}</tbody></table></div>
-          <div className="lg:hidden divide-y divide-surface-100">{rows.map((r) => {
-            const isPaid = (r.effective_status || r.status) === "paid";
-            return (
-              <div key={r.id} className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-surface-900">{t("บ้าน", "House")} {r.house_number}</div>
-                    <div className="text-sm text-surface-500 break-words">{r.owner_name || "-"}</div>
-                  </div>
-                  <FinanceStatusBadge status={r.effective_status || r.status} lang={lang} />
                 </div>
-                <div className="mt-3 rounded-xl bg-surface-50 border border-surface-100 px-3 py-2 text-sm">
-                  <span className="text-surface-500">{t("รอบบิล", "Period")}</span>
-                  <div className="font-semibold text-surface-900">{formatDate(r.period_start, lang)} - {formatDate(r.period_end, lang)}</div>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-surface-500">{t("ยอด", "Due")}</span>
-                    <div className="font-semibold">{formatMoney(r.amount_due, lang)}</div>
-                  </div>
-                  <div>
-                    <span className="text-surface-500">{t("ชำระ", "Paid")}</span>
-                    <div className="font-semibold">{formatMoney(r.amount_paid, lang)}</div>
-                  </div>
-                </div>
-                {r.payments?.[0]?.transaction_ref_id && (
-                  <div className="mt-3 rounded-xl bg-surface-50 border border-surface-100 px-3 py-2 text-sm">
-                    <span className="text-surface-500">{t("เลขที่รายการ", "Ref ID")}</span>
-                    <div className="font-mono text-xs font-semibold text-surface-700 break-all">
-                      {r.payments[0].transaction_ref_id}
-                    </div>
-                  </div>
-                )}
-                {isPaid ? (
-                  <button 
-                    onClick={() => {
-                      setViewingRow(r);
-                      setViewingPaymentIndex(0);
-                      setImgZoom(1);
-                      setImgRotate(0);
-                    }} 
-                    className="mt-3 w-full rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 py-2.5 text-sm font-semibold hover:bg-emerald-100/50 transition-colors"
-                  >
-                    {t("ดูหลักฐานการชำระเงิน", "View payment details")}
-                  </button>
-                ) : (
-                  <button onClick={() => openPayment(r)} className="mt-3 w-full rounded-xl bg-brand-50 text-brand-700 py-2.5 text-sm font-medium hover:bg-brand-100/50 transition-colors">
-                    {t("บันทึกชำระ", "Record payment")}
-                  </button>
-                )}
-              </div>
-            );
-          })}</div>
+              );
+            })}
+          </div>
         </>}
       </div>
 
