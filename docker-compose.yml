@@ -11,24 +11,25 @@ services:
     - .env
     environment:
       DB_HOST: ${DB_HOST:-187.77.135.125}
-      DB_NAME: postgres
+      DB_NAME: ${DB_NAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER:-postgres}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
-      NEXTAUTH_URL: https://suan-ake.cloud
-      PUBLIC_ORIGIN: https://suan-ake.cloud
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://suan-ake.cloud}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://suan-ake.cloud}
       MAIL_FROM: ${MAIL_FROM:-Suan Ake Lake Park Villa <noreply@suan-ake.cloud>}
       MAIL_EHLO_NAME: ${MAIL_EHLO_NAME:-suan-ake.cloud}
-      LINE_CLIENT_ID: "1661205091"
-      LINE_CLIENT_SECRET: ${PROD_LINE_CLIENT_SECRET:?PROD_LINE_CLIENT_SECRET is required}
+      LINE_CLIENT_ID: ${LINE_CLIENT_ID:-1661205091}
+      LINE_CLIENT_SECRET: ${LINE_CLIENT_SECRET:?LINE_CLIENT_SECRET is required}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      SHARON_TRANSLATION_URL: http://172.16.1.1:18787/translate
     expose:
     - '3000'
     volumes:
     - ./public/uploads:/app/public/uploads
+    - /root/.hermes:/root/.hermes:ro
+    - /var/lib/payment-slips:/var/lib/payment-slips
     labels:
     - traefik.enable=true
     - traefik.http.routers.suan-ake.rule=Host(`suan-ake.cloud`)
