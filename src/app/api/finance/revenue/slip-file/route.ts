@@ -29,42 +29,34 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "id parameter is required" }, { status: 400 });
     }
 
-    // 2. Query the payment slip file system path. 
-    // Try querying by payment_slip_id directly first (used on payment-slips page)
-    let r = await query(
-      `SELECT file_system_path, mime_type
-       FROM slip_processing.payment_slip_files
-       WHERE payment_slip_id::text = $1 AND file_role = 'original'`,
+    // 2. Query the payment slip file system path associated with the payment id
+    const r = await query(
+      `SELECT psf.file_system_path, psf.mime_type
+       FROM slip_processing.payments p
+       JOIN slip_processing.payment_slip_files psf 
+         ON psf.payment_slip_id::text = substring(p.notes from '"payment_slip_id":\\s*"([^"]+)"')
+         AND psf.file_role = 'original'
+       WHERE p.id = $1 AND p.deleted_at IS NULL`,
       [paymentId]
     );
-
-    // If not found, try treating it as a payment_id (used on revenue page)
-    if (r.rows.length === 0) {
-      r = await query(
-        `SELECT psf.file_system_path, psf.mime_type
-         FROM slip_processing.payments p
-         JOIN slip_processing.payment_slip_files psf 
-           ON psf.payment_slip_id::text = substring(p.notes from '"payment_slip_id":\\s*"([^"]+)"')
-           AND psf.file_role = 'original'
-         WHERE p.id = $1 AND p.deleted_at IS NULL`,
-        [paymentId]
-      );
-    }
 
     if (r.rows.length === 0 || !r.rows[0].file_system_path) {
       return NextResponse.json({ error: "Slip file not found" }, { status: 404 });
     }
 
-    const fullPath = String(r.rows[0].file_system_path);
+    let fullPath = String(r.rows[0].file_system_path);
+    if (!fullPath.startsWith("/")) {
+      fullPath = path.join("/var/lib/payment-slips", fullPath);
+    }
 
     // 3. Verify file existence and is a file
     try {
       const s = await stat(fullPath);
       if (!s.isFile()) {
-        return NextResponse.json({ error: "Slip file is not a valid file" }, { status: 404 });
+        return NextResponse.json({ error: `Slip file is not a valid file: ${fullPath}` }, { status: 404 });
       }
     } catch {
-      return NextResponse.json({ error: "Slip file cannot be found on disk" }, { status: 404 });
+      return NextResponse.json({ error: `Slip file cannot be found on disk: ${fullPath}` }, { status: 404 });
     }
 
     // 4. Read the file binary and serve it

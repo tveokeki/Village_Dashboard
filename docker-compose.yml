@@ -28,6 +28,7 @@ services:
     - '3000'
     volumes:
     - ./public/uploads:/app/public/uploads
+    - /var/lib/payment-slips:/var/lib/payment-slips
     labels:
     - traefik.enable=true
     - traefik.http.routers.suan-ake.rule=Host(`suan-ake.cloud`)

@@ -9,6 +9,10 @@ services:
       - .env
     ports:
       - "3001:3000"
+    volumes:
+      - ./public/uploads:/app/public/uploads
+      - /root/.hermes:/root/.hermes:ro
+      - /var/lib/payment-slips:/var/lib/payment-slips
     labels:
       - traefik.enable=true
       - traefik.http.routers.suan-ake-uat.rule=Host(`suan-ake.cloud`) && PathPrefix(`/uat`)

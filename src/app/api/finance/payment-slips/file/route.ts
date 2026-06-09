@@ -37,16 +37,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Slip file not found" }, { status: 404 });
     }
 
-    const fullPath = String(r.rows[0].file_system_path);
+    let fullPath = String(r.rows[0].file_system_path);
+    if (!fullPath.startsWith("/")) {
+      fullPath = path.join("/var/lib/payment-slips", fullPath);
+    }
 
     // 3. Verify file existence and is a file
     try {
       const s = await stat(fullPath);
       if (!s.isFile()) {
-        return NextResponse.json({ error: "Slip file is not a valid file" }, { status: 404 });
+        return NextResponse.json({ error: `Slip file is not a valid file: ${fullPath}` }, { status: 404 });
       }
     } catch {
-      return NextResponse.json({ error: "Slip file cannot be found on disk" }, { status: 404 });
+      return NextResponse.json({ error: `Slip file cannot be found on disk: ${fullPath}` }, { status: 404 });
     }
 
     // 4. Read the file binary and serve it
