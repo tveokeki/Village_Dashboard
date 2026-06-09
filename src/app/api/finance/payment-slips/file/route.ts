@@ -25,11 +25,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "id parameter is required" }, { status: 400 });
     }
 
-    // 2. Query payment slip file path directly from payment_slip_files using the payment_slip_id
+    // 2. Query payment slip file path directly from payment_slips and payment_slip_files (hybrid)
     const r = await query(
-      `SELECT file_system_path, mime_type
-       FROM slip_processing.payment_slip_files
-       WHERE payment_slip_id::text = $1 AND file_role = 'original'`,
+      `SELECT COALESCE(ps.file_system_path, psf.file_system_path) AS file_system_path,
+              COALESCE(psf.mime_type, 'image/jpeg') AS mime_type
+       FROM slip_processing.payment_slips ps
+       LEFT JOIN slip_processing.payment_slip_files psf 
+         ON psf.payment_slip_id = ps.id AND psf.file_role = 'original'
+       WHERE ps.id::text = $1 AND ps.deleted_at IS NULL`,
       [slipId]
     );
 
