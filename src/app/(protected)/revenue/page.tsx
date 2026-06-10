@@ -52,6 +52,7 @@ export default function RevenuePage() {
   const [uploadingSlip, setUploadingSlip] = useState(false);
   const [uploadedSlipName, setUploadedSlipName] = useState<string | null>(null);
   const [addPaymentType, setAddPaymentType] = useState<string>("monthly");
+  const [paymentTypes, setPaymentTypes] = useState<any[]>([]);
 
   const [viewingRow, setViewingRow] = useState<any | null>(null);
   const [viewingPaymentIndex, setViewingPaymentIndex] = useState<number>(0);
@@ -95,6 +96,34 @@ export default function RevenuePage() {
   }
 
   useEffect(() => { const timer = window.setTimeout(loadRevenue, 250); return () => window.clearTimeout(timer); }, [filters, activeTab]);
+
+  async function loadDropdowns() {
+    try {
+      const res = await fetch(uatPath("/api/dropdown-options?groups=payment_type"));
+      const data = await res.json();
+      if (res.ok && data.groups && data.groups.payment_type) {
+        setPaymentTypes(data.groups.payment_type);
+      }
+    } catch (err) {
+      console.error("Failed to load payment types dropdown:", err);
+    }
+  }
+
+  useEffect(() => {
+    loadDropdowns();
+  }, []);
+
+  const defaultPaymentTypes = [
+    { code: "monthly", label_th: "ค่าส่วนกลางรายเดือน", label_en: "Monthly Common Fee" },
+    { code: "village_fund_2569", label_th: "เงินทุนเพื่อพัฒนาหมู่บ้านปี 2569", label_en: "Village Development Fund 2569" },
+    { code: "retroactive_common_fee", label_th: "ค่าส่วนกลางย้อนหลัง", label_en: "Retroactive Common Fee" },
+    { code: "deposit_interest", label_th: "ดอกเบี้ยเงินฝาก", label_en: "Bank Deposit Interest" },
+    { code: "construction_deposit", label_th: "ค่าประกันการก่อสร้าง", label_en: "Construction Deposit" },
+    { code: "fine", label_th: "ค่าปรับ", label_en: "Fine / Penalty" },
+    { code: "other", label_th: "รายรับอื่น ๆ", label_en: "Other Revenue" },
+  ];
+
+  const displayPaymentTypes = paymentTypes.length > 0 ? paymentTypes : defaultPaymentTypes;
 
   const summarizeStats = (items: any[]) => {
     const byStatus: Record<string, any> = {};
@@ -372,7 +401,12 @@ export default function RevenuePage() {
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] font-medium text-surface-500">{t("ประเภท", "Type")}</label>
-            <select className="input-field" value={filters.payment_type} onChange={(e) => setFilters({ ...filters, payment_type: e.target.value })} aria-label={t("ประเภท", "Type")}><option value="all">{t("ทุกประเภท", "All types")}</option><option value="monthly">{t("รายเดือน", "Monthly")}</option><option value="village_fund_2569">{t("เงินทุนเพื่อพัฒนาหมู่บ้านปี 2569", "Village Development Fund 2026")}</option></select>
+            <select className="input-field" value={filters.payment_type} onChange={(e) => setFilters({ ...filters, payment_type: e.target.value })} aria-label={t("ประเภท", "Type")}>
+              <option value="all">{t("ทุกประเภท", "All types")}</option>
+              {displayPaymentTypes.map((type: any) => (
+                <option key={type.code} value={type.code}>{t(type.label_th, type.label_en)}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1">
             <label className="block text-[11px] font-medium text-surface-500">{t("จาก", "From")}</label>
@@ -496,12 +530,9 @@ export default function RevenuePage() {
                 }} 
                 className="input-field font-semibold"
               >
-                <option value="monthly">{t("ค่าส่วนกลางรายเดือน", "Monthly Common Fee")}</option>
-                <option value="village_fund_2569">{t("ค่ากองทุนพัฒนาหมู่บ้านปี 2569", "Village Development Fund 2026")}</option>
-                <option value="deposit_interest">{t("ดอกเบี้ยเงินฝาก", "Bank Deposit Interest")}</option>
-                <option value="construction_deposit">{t("ค่าประกันการก่อสร้าง", "Construction Deposit")}</option>
-                <option value="fine">{t("ค่าปรับ", "Fine / Penalty")}</option>
-                <option value="other">{t("รายรับอื่น ๆ", "Other Revenue")}</option>
+                {displayPaymentTypes.map((type: any) => (
+                  <option key={type.code} value={type.code}>{t(type.label_th, type.label_en)}</option>
+                ))}
               </select>
             </div>
 
