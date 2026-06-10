@@ -5,7 +5,7 @@ import { badRequest, money, optionalDate, parseLimit, parseOffset, positiveMoney
 
 export const dynamic = "force-dynamic";
 
-const paymentTypes = new Set(["monthly", "village_fund_2569", "deposit_interest", "construction_deposit", "fine", "other"]);
+const paymentTypes = new Set(["monthly", "village_fund_2569", "retroactive_common_fee", "deposit_interest", "construction_deposit", "fine", "other"]);
 const feeStatuses = new Set(["pending", "paid", "overdue", "waived", "cancelled"]);
 
 export async function GET(req: NextRequest) {
