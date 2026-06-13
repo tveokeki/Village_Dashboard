@@ -28,8 +28,8 @@ export default function TopNav() {
     { icon: "🏠", label: lang === "th" ? "แดชบอร์ด" : "Dashboard", href: "/dashboard" },
     { icon: "🔔", label: lang === "th" ? "แจ้งเตือน" : "Notifications", href: "/notifications" },
     { icon: "📢", label: lang === "th" ? "ประกาศ" : "Announcements", href: "/announcements" },
-    { icon: "🎫", label: lang === "th" ? "รายการปัญหา" : "Tickets", href: "/tickets" },
     { icon: "📄", label: lang === "th" ? "เอกสาร" : "Documents", href: "/documents" },
+    { icon: "🎫", label: lang === "th" ? "รายการปัญหา" : "Tickets", href: "/tickets" },
   ];
   const financeItems = [
     { icon: "👥", label: lang === "th" ? "สมาชิก" : "Members", href: "/members" },

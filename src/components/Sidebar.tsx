@@ -17,8 +17,8 @@ const navItems: NavItem[] = [
   { icon: "🏠", label: { th: "แดชบอร์ด", en: "Dashboard" }, href: "/dashboard" },
   { icon: "🔔", label: { th: "แจ้งเตือน", en: "Notifications" }, href: "/notifications" },
   { icon: "📢", label: { th: "ประกาศ", en: "Announcements" }, href: "/announcements" },
-  { icon: "🎫", label: { th: "รายการปัญหา", en: "Tickets" }, href: "/tickets" },
   { icon: "📄", label: { th: "เอกสาร", en: "Documents" }, href: "/documents" },
+  { icon: "🎫", label: { th: "รายการปัญหา", en: "Tickets" }, href: "/tickets" },
   { icon: "👤", label: { th: "โปรไฟล์", en: "Profile" }, href: "/profile" },
 ];
 
