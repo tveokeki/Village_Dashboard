@@ -89,6 +89,18 @@ else
     exit 1
 fi
 
+# 4. Check for /uat path contamination on Production login page
+echo -e "\n🔍 Checking for /uat path contamination on Production login page..."
+PROD_LOGIN_HTML=$(docker exec suan-eak-web node -e "fetch('http://127.0.0.1:3000/login').then(res => res.text()).then(html => console.log(html))" || echo "failed")
+if echo "$PROD_LOGIN_HTML" | grep -q "/uat/"; then
+    echo -e "   ${RED}❌ ERROR: Contamination found! Production login page HTML contains '/uat/' references!${CLEAR}"
+    echo -e "   Matching lines:"
+    echo "$PROD_LOGIN_HTML" | grep "/uat/"
+    exit 1
+else
+    echo -e "   ${GREEN}✔ No '/uat/' contamination detected on Production login page.${CLEAR}"
+fi
+
 echo -e "\n${GREEN}====================================================${CLEAR}"
 echo -e "${GREEN}🎉 ALL SMOKE TESTS AND ENVIRONMENT SANITY CHECKS PASSED SUCCESSFULLY!${CLEAR}"
 echo -e "${GREEN}====================================================${CLEAR}"
