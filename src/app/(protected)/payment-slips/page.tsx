@@ -70,7 +70,7 @@ export default function PaymentSlipsPage() {
     // Populate form
     setPayerName(slip.payer_name_raw || "");
     setPayeeName(slip.payee_name_raw || "");
-    setAmount(String(slip.amount || ""));
+    setAmount(slip.amount ? parseFloat(String(slip.amount)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
     // Format timestamp for datetime-local input
     if (slip.transaction_at) {
       const d = new Date(slip.transaction_at);
@@ -100,7 +100,7 @@ export default function PaymentSlipsPage() {
           id: selectedSlip.id,
           payer_name_raw: payerName,
           payee_name_raw: payeeName,
-          amount: parseFloat(amount),
+          amount: parseFloat(String(amount).replace(/,/g, "")),
           transaction_at: txDateTime ? new Date(txDateTime).toISOString() : null,
           bank_ref_id: bankRefId || null,
           promptpay_ref_id: promptpayRefId || null,
@@ -398,11 +398,19 @@ export default function PaymentSlipsPage() {
                       <div>
                         <label className="block text-xs font-medium text-surface-500 mb-1">{t("จำนวนเงิน (บาท)", "Amount (THB)")}</label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
                           required
                           value={amount}
                           onChange={(e) => setAmount(e.target.value)}
+                          onFocus={(e) => {
+                            setAmount(String(amount).replace(/,/g, ""));
+                          }}
+                          onBlur={(e) => {
+                            const num = parseFloat(String(amount).replace(/,/g, ""));
+                            if (!isNaN(num)) {
+                              setAmount(num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                            }
+                          }}
                           className="w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-bold text-lg"
                         />
                       </div>

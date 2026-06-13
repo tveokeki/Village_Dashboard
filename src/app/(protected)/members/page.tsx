@@ -94,7 +94,7 @@ export default function MembersPage() {
       land_type: member.land_type || "",
       area: member.area ? String(member.area) : "",
       land_count: member.land_count ? String(member.land_count) : "",
-      maintenance_fee: member.maintenance_fee ? String(member.maintenance_fee) : "",
+      maintenance_fee: member.maintenance_fee ? parseFloat(String(member.maintenance_fee)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "",
       notes: member.notes || "",
     });
     setShowForm(true);
@@ -115,10 +115,14 @@ export default function MembersPage() {
     setMessage("");
     setSuccess("");
     try {
+      const sanitizedForm = {
+        ...form,
+        maintenance_fee: form.maintenance_fee ? String(form.maintenance_fee).replace(/,/g, "") : null
+      };
       const res = await fetch(uatPath("/api/finance/members"), {
         method: form.id ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(sanitizedForm),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed");
@@ -202,7 +206,7 @@ export default function MembersPage() {
           <div><label className={label}>{t("ประเภทที่ดิน", "Land type")}</label><select className={input} value={form.land_type} onChange={(e) => setForm({ ...form, land_type: e.target.value })} required><option value="">{t("เลือกประเภทที่ดิน", "Select land type")}</option>{landTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
           <div><label className={label}>{t("พื้นที่ (ตรว.)", "Area (sq.w.)")}</label><input className={input} type="number" step="0.01" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} /></div>
           <div><label className={label}>{t("จำนวนแปลง", "Land count")}</label><input className={input} type="number" value={form.land_count} onChange={(e) => setForm({ ...form, land_count: e.target.value })} /></div>
-          <div><label className={label}>{t("ค่าส่วนกลาง", "Maintenance fee")}</label><input className={input} type="number" step="0.01" value={form.maintenance_fee} onChange={(e) => setForm({ ...form, maintenance_fee: e.target.value })} /></div>
+          <div><label className={label}>{t("ค่าส่วนกลาง", "Maintenance fee")}</label><input className={input} type="text" value={form.maintenance_fee} onChange={(e) => setForm({ ...form, maintenance_fee: e.target.value })} onFocus={(e) => { setForm({ ...form, maintenance_fee: String(form.maintenance_fee).replace(/,/g, "") }); }} onBlur={(e) => { const num = parseFloat(String(form.maintenance_fee).replace(/,/g, "")); if (!isNaN(num)) { setForm({ ...form, maintenance_fee: num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }); } }} /></div>
           <div><label className={label}>{t("สถานะ", "Status")}</label><select className={input} value={form.member_status} onChange={(e) => setForm({ ...form, member_status: e.target.value })}><option value="active">{t("ใช้งาน", "Active")}</option><option value="inactive">{t("ไม่ใช้งาน", "Inactive")}</option><option value="suspended">{t("ระงับ", "Suspended")}</option></select></div>
           <div className="md:col-span-3"><label className={label}>{t("หมายเหตุ", "Notes")}</label><textarea className={input} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           <button disabled={saving} className="btn-primary md:col-span-3">{saving ? t("กำลังบันทึก...", "Saving...") : t("บันทึกข้อมูลสมาชิก", "Save member")}</button>
