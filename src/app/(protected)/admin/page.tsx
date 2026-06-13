@@ -713,5 +713,5 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
 }
 
 export default function AdminPage() {
-  redirect("/uat/admin/announcements");
+  redirect(uatPath("/admin/announcements"));
 }

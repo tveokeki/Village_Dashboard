@@ -69,7 +69,7 @@ export default function TopNav() {
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-surface-200">
           <div className="flex items-center gap-3">
-            <img src="/uat/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
+            <img src={uatPath("/logo-suan-ake.png")} alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
             <div>
               <div className="text-sm font-semibold text-brand-700">
                 {lang === "th" ? "สวนเอก เลคปาร์ควิลล่า" : "Suan Eak Lake Park Villa"}
@@ -175,7 +175,7 @@ export default function TopNav() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <img src="/uat/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-8 h-8 rounded-md object-contain bg-white ring-1 ring-brand-100 p-0.5" />
+          <img src={uatPath("/logo-suan-ake.png")} alt="Suan Eak Lake Park Villa logo" className="w-8 h-8 rounded-md object-contain bg-white ring-1 ring-brand-100 p-0.5" />
           <span className="font-semibold text-brand-700 hidden sm:inline text-sm lg:text-base">
             {lang === "th" ? "สวนเอก เลคปาร์ควิลล่า" : "Suan Eak Lake Park Villa"}
           </span>

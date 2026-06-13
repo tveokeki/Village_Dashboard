@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        redirect_uri: "https://suan-ake.cloud/uat/api/auth/callback/line",
+        redirect_uri: `${PUBLIC_ORIGIN}${UAT_BASE_PATH}/api/auth/callback/line`,
         client_id: process.env.LINE_CLIENT_ID || "",
         client_secret: process.env.LINE_CLIENT_SECRET || "",
       }),

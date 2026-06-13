@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Toast from "@/components/Toast";
 
+const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
+const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
+
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "", houseNumber: "", lineId: "" });
@@ -50,7 +53,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="bg-gradient-to-r from-brand-500 to-brand-400 rounded-t-2xl h-32 flex flex-col items-center justify-center text-white">
           <div className="w-20 h-20 rounded-full bg-white/90 p-1.5 flex items-center justify-center mb-2 shadow-md ring-1 ring-white/70">
-            <img src="/uat/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-full h-full object-contain" />
+            <img src={uatPath("/logo-suan-ake.png")} alt="Suan Eak Lake Park Villa logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-base font-semibold">สมัครสมาชิก</h1>
         </div>
@@ -86,7 +89,7 @@ export default function RegisterPage() {
             </button>
           </form>
           <p className="text-sm text-center mt-4 text-surface-500">
-            มีบัญชีแล้ว? <Link href="/login" className="text-brand-500 hover:underline">เข้าสู่ระบบ</Link>
+            มีบัญชีแล้ว? <Link href={uatPath("/login")} className="text-brand-500 hover:underline">เข้าสู่ระบบ</Link>
           </p>
         </div>
       </div>

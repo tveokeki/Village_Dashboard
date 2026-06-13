@@ -66,7 +66,7 @@ export default function Sidebar() {
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-surface-200 h-screen sticky top-0">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-surface-200">
-        <img src="/uat/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
+        <img src={uatPath("/logo-suan-ake.png")} alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
         <div>
           <div className="text-sm font-semibold text-brand-700">
             {lang === "th" ? "สวนเอก เลคปาร์ควิลล่า" : "Suan Eak Lake Park Villa"}
