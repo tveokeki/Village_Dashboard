@@ -98,7 +98,6 @@ export default function ProfilePage() {
           )}
           <div>
             <h2 className="font-semibold text-surface-800 text-lg">{displayName || user?.name || t("สมาชิก", "Member")}</h2>
-            <p className="text-sm text-surface-500">{user?.email}</p>
           </div>
         </div>
 
