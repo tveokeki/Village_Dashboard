@@ -10,6 +10,7 @@ const protectedPagePrefixes = [
   "/admin",
   "/finance",
   "/revenue",
+  "/common-fee-report",
   "/expenses",
   "/reconciliation",
   "/financial-reports",
@@ -33,8 +34,10 @@ function isProtectedPage(pathname: string) {
 function publicLoginUrl(req: NextRequest) {
   const host = req.headers.get("host") || "";
   const proto = req.headers.get("x-forwarded-proto") || req.nextUrl.protocol.replace(":", "") || "https";
-  const url = new URL("/login", `${proto}://${host || req.nextUrl.host}`);
-  url.searchParams.set("callbackUrl", `${req.nextUrl.pathname}${req.nextUrl.search}`);
+  const isPublicUatHost = host === "suan-ake.cloud" || host.endsWith(".suan-ake.cloud");
+  const loginPath = isPublicUatHost ? "/uat/login" : "/login";
+  const url = new URL(loginPath, `${proto}://${host || req.nextUrl.host}`);
+  url.searchParams.set("callbackUrl", isPublicUatHost ? `/uat${req.nextUrl.pathname}${req.nextUrl.search}` : `${req.nextUrl.pathname}${req.nextUrl.search}`);
   return url;
 }
 
@@ -63,6 +66,7 @@ export const config = {
     "/admin/:path*",
     "/finance/:path*",
     "/revenue/:path*",
+    "/common-fee-report/:path*",
     "/expenses/:path*",
     "/reconciliation/:path*",
     "/financial-reports/:path*",

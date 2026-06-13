@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* production root path: no assetPrefix */
+  assetPrefix: process.env.NEXT_PUBLIC_UAT_BASE_PATH || undefined,
 };
 
 export default nextConfig;

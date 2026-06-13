@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suan Eak Finance - Variant B (Unified Revenue with Sub-Tabs)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+        /* Custom scrollbar for better appearance */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden text-slate-800">
+
+    <!-- DESKTOP CONTAINER -->
+    <div class="flex h-full w-full overflow-hidden">
+        
+        <!-- SIDEBAR (Desktop Only - Unified Menu style) -->
+        <aside class="hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 h-full flex-shrink-0">
+            <div class="flex items-center gap-3 px-6 py-5 border-b border-slate-200">
+                <div class="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    SE
+                </div>
+                <div>
+                    <div class="text-sm font-semibold text-emerald-800">สวนเอก เลคปาร์ควิลล่า</div>
+                    <div class="text-xs text-slate-500">หมู่บ้านจัดสรร / นิติบุคคล</div>
+                </div>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+                <div class="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">ทั่วไป</div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors text-sm">
+                    <span>🏠</span>
+                    <span>แดชบอร์ด</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors text-sm">
+                    <span>📢</span>
+                    <span>ประกาศ</span>
+                </a>
+
+                <div class="pt-4 px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">ระบบการเงิน (รวม 1 เมนู)</div>
+                
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors text-sm">
+                    <span>👥</span>
+                    <span>สมาชิกหมู่บ้าน</span>
+                </a>
+
+                <!-- UNIFIED MENU: Revenue with single entry point -->
+                <a href="#" onclick="alert('คุณกำลังอยู่ที่หน้าหลักรายรับ')" class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 font-medium border border-emerald-200 transition-colors text-sm">
+                    <span>💰</span>
+                    <span class="flex-1">จัดการรายรับ (รวม)</span>
+                    <span class="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded-full font-bold">บิล + อื่นๆ</span>
+                </a>
+
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors text-sm">
+                    <span>🧾</span>
+                    <span>รายจ่าย</span>
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors text-sm">
+                    <span>🏦</span>
+                    <span>กระทบยอดสเตทเมนต์</span>
+                </a>
+            </nav>
+
+            <div class="border-t border-slate-200 p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-600">
+                        IV
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-slate-700 truncate">Ive (UX Designer)</p>
+                        <p class="text-[10px] text-slate-500 truncate">ฝ่ายออกแบบ / พัฒนา UX</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 relative pb-16 lg:pb-0">
+            
+            <!-- TOP NAV (Mobile topbar, Desktop header) -->
+            <header class="h-14 lg:h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 flex-shrink-0 z-10 shadow-sm lg:shadow-none">
+                <div class="flex items-center gap-2">
+                    <span class="lg:hidden text-lg">💰</span>
+                    <h1 class="font-bold text-slate-800 text-base lg:text-lg">จัดการรายรับ (Revenue Dashboard)</h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-mono font-bold">UAT: VARIANT B</span>
+                    <span class="text-xs text-slate-400">|</span>
+                    <span class="text-sm">🇹🇭 TH</span>
+                </div>
+            </header>
+
+            <!-- SUB-HEADER SEGMENTED CONTROL / TABS -->
+            <div class="bg-white border-b border-slate-200 px-4 lg:px-8 py-3 flex-shrink-0 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    
+                    <!-- Beautiful tab switcher -->
+                    <div class="bg-slate-100 p-1 rounded-xl border border-slate-200 flex w-full sm:w-auto max-w-md">
+                        <button onclick="switchTab('common-fee')" id="tab-cf-btn" class="flex-1 sm:flex-initial px-5 py-2 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-sm flex items-center justify-center gap-2">
+                            <span>📄</span> รายรับค่าส่วนกลาง
+                        </button>
+                        <button onclick="switchTab('other-revenue')" id="tab-or-btn" class="flex-1 sm:flex-initial px-5 py-2 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2">
+                            <span>🏦</span> รายรับประเภทอื่น ๆ
+                        </button>
+                    </div>
+
+                    <!-- Dynamic main action button depending on active tab -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="triggerRecordPayment()" id="main-action-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5 w-full sm:w-auto">
+                            <span>➕</span> บันทึกรับชำระค่าส่วนกลาง
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGE CONTENT CONTAINER -->
+            <div class="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
+
+                <!-- TAB 1 CONTENT: COMMON FEE REVENUE -->
+                <div id="content-common-fee" class="space-y-6">
+                    
+                    <!-- Summary banner -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                        <h2 class="text-base font-bold text-slate-900">ค่าส่วนกลางโครงการ (Common Fees)</h2>
+                        <p class="text-xs text-slate-500 mt-1">ติดตามยอดจัดเก็บประจำเดือน/รายปี ยอดชำระแล้ว และยอดรอชำระของลูกบ้านแบบรายตัวบิล</p>
+                    </div>
+
+                    <!-- KPI Cards for Common Fees -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white rounded-2xl border border-amber-200 p-5 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                                ⏳
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-500">รอชำระ (เดือนนี้)</p>
+                                <p class="text-xl font-bold text-slate-800 mt-1">8 หลัง</p>
+                                <p class="text-xs text-amber-600 font-semibold mt-0.5">รวม 8,400.00 ฿</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-red-200 p-5 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl">
+                                🚨
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-500">เกินกำหนดชำระ (Overdue)</p>
+                                <p class="text-xl font-bold text-slate-800 mt-1">15 หลัง</p>
+                                <p class="text-xs text-red-600 font-semibold mt-0.5">รวม 25,600.00 ฿</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-emerald-200 p-5 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                 ✅
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-500">ชำระแล้ว (เดือนนี้)</p>
+                                <p class="text-xl font-bold text-slate-800 mt-1">42 หลัง</p>
+                                <p class="text-xs text-emerald-600 font-semibold mt-0.5">รวม 44,100.00 ฿</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters for Common Fees -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">ค้นหาบ้านเลขที่/เจ้าของ</label>
+                                <input type="text" id="filter-cf-search" oninput="filterCommonFeeTable()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="พิมพ์เลขบ้าน หรือ ชื่อเจ้าของ">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">สถานะ</label>
+                                <select id="filter-cf-status" onchange="filterCommonFeeTable()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                    <option value="all">ทุกสถานะ</option>
+                                    <option value="pending">รอชำระ (Pending)</option>
+                                    <option value="overdue">เกินกำหนดชำระ (Overdue)</option>
+                                    <option value="paid">ชำระแล้ว (Paid)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">ความถี่ของบิล</label>
+                                <select id="filter-cf-type" onchange="filterCommonFeeTable()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                    <option value="all">ทุกแบบ</option>
+                                    <option value="monthly">รายเดือนปกติ</option>
+                                    <option value="yearly">รายปี</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="resetCFFilters()" class="w-full px-4 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors">ล้างตัวกรอง</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table of Common Fees -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                            <span class="text-xs font-bold text-slate-600">รายการรอบเรียกเก็บค่าส่วนกลาง (ผูกทะเบียนสมาชิกรอบปกติ)</span>
+                            <span class="text-[11px] text-slate-500" id="cf-count-label">แสดงผล 5 รายการ</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                        <th class="px-5 py-3">บ้านเลขที่</th>
+                                        <th class="px-5 py-3">ชื่อเจ้าของ</th>
+                                        <th class="px-5 py-3">รอบประจำเดือน</th>
+                                        <th class="px-5 py-3 text-right">ยอดเรียกเก็บ</th>
+                                        <th class="px-5 py-3 text-right">ยอดชำระแล้ว</th>
+                                        <th class="px-5 py-3 text-center">สถานะบิล</th>
+                                        <th class="px-5 py-3 text-center">บันทึกชำระ</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 text-xs text-slate-700" id="cf-tbody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- TAB 2 CONTENT: OTHER REVENUE -->
+                <div id="content-other-revenue" class="hidden space-y-6">
+                    
+                    <!-- Summary banner -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                        <h2 class="text-base font-bold text-slate-900">รายรับเบ็ดเตล็ดอื่น ๆ (Other General Revenues)</h2>
+                        <p class="text-xs text-slate-500 mt-1">บริหารจัดการรายรับเบ็ดเตล็ดที่ไม่เกี่ยวกับบิลลูกบ้านรายเดือน เช่น ดอกเบี้ยออมทรัพย์, เงินค้ำประกันรับล่วงหน้า, ค่าปรับสุนัข, เงินสนับสนุนสมาคม</p>
+                    </div>
+
+                    <!-- KPI Cards for Other Revenue -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                🏦
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-500">ดอกเบี้ยธนาคารรับสะสม (ปีนี้)</p>
+                                <p class="text-xl font-bold text-slate-800 mt-1">4,250.60 ฿</p>
+                                <p class="text-xs text-slate-500 mt-0.5">จาก 2 บัญชีออมทรัพย์</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl">
+                                🏗️
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-500">เงินประกันต่อเติมคงค้าง</p>
+                                <p class="text-xl font-bold text-slate-800 mt-1">30,000.00 ฿</p>
+                                <p class="text-xs text-slate-500 mt-0.5">รอคืน 3 รายการงานเสร็จ</p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                                ⚠️
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-500">ค่าปรับและรายรับเบ็ดเตล็ดอื่น ๆ</p>
+                                <p class="text-xl font-bold text-slate-800 mt-1">8,500.00 ฿</p>
+                                <p class="text-xs text-slate-500 mt-0.5">รวมเงินทุนหมู่บ้านอื่น ๆ</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters for Other Revenue -->
+                    <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">หมวดหมู่รายรับอื่น ๆ</label>
+                                <select id="filter-or-category" onchange="filterOtherRevenueTable()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                    <option value="all">ทุกประเภท</option>
+                                    <option value="bank_interest">ดอกเบี้ยธนาคาร</option>
+                                    <option value="construction_deposit">เงินประกันต่อเติม</option>
+                                    <option value="fine">ค่าปรับ</option>
+                                    <option value="donation">เงินบริจาค</option>
+                                    <option value="other">อื่น ๆ</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">ค้นหาจากรายละเอียด</label>
+                                <input type="text" id="filter-or-search" oninput="filterOtherRevenueTable()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="พิมพ์ข้อความที่ต้องการค้นหา...">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-500 mb-1">จับคู่ Statement</label>
+                                <select id="filter-or-reconcile" onchange="filterOtherRevenueTable()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                    <option value="all">ทุกสถานะ</option>
+                                    <option value="yes">เรียบร้อยแล้ว (Matched)</option>
+                                    <option value="no">ยังไม่ได้จับคู่</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="resetORFilters()" class="w-full px-4 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors">ล้างตัวกรอง</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table of Other Revenues -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                            <span class="text-xs font-bold text-slate-600">ประวัติรายรับเบ็ดเตล็ด (ไม่ได้ผูกบิล • member_id สามารถเป็น NULL ได้ใน DB เพื่อความเสถียร)</span>
+                            <span class="text-[11px] text-slate-500" id="or-count-label">แสดงผล 4 รายการ</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                        <th class="px-5 py-3">วันที่</th>
+                                        <th class="px-5 py-3">หมวดหมู่</th>
+                                        <th class="px-5 py-3">รายละเอียด / หมายเหตุ</th>
+                                        <th class="px-5 py-3">ผู้ชำระเงิน/อ้างอิงบ้าน</th>
+                                        <th class="px-5 py-3 text-right">จำนวนเงิน</th>
+                                        <th class="px-5 py-3 text-center">กระทบยอดธนาคาร</th>
+                                        <th class="px-5 py-3 text-center">ประวัติ</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 text-xs text-slate-700" id="or-tbody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- MOBILE BOTTOM NAV -->
+            <nav class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-20 shadow-lg">
+                <button onclick="alert('ไปยังหน้าหลัก')" class="flex flex-col items-center gap-0.5 text-slate-400">
+                    <span class="text-xl">🏠</span>
+                    <span class="text-[10px]">หลัก</span>
+                </button>
+                <button onclick="alert('คุณอยู่ที่หน้ารายรับแล้ว')" class="flex flex-col items-center gap-0.5 text-emerald-600 font-bold">
+                    <span class="text-xl">💰</span>
+                    <span class="text-[10px]">รายรับ</span>
+                </button>
+                <button onclick="alert('ไปยังหน้ารายจ่าย')" class="flex flex-col items-center gap-0.5 text-slate-400">
+                    <span class="text-xl">🧾</span>
+                    <span class="text-[10px]">รายจ่าย</span>
+                </button>
+                <button onclick="alert('ไปยังหน้ากระทบยอด')" class="flex flex-col items-center gap-0.5 text-slate-400">
+                    <span class="text-xl">🏦</span>
+                    <span class="text-[10px]">กระทบยอด</span>
+                </button>
+            </nav>
+
+        </main>
+    </div>
+
+    <!-- MODAL: RECORD PAYMENT -->
+    <div id="record-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col my-8">
+            <div class="px-6 py-4 bg-emerald-700 text-white flex justify-between items-center flex-shrink-0">
+                <h3 class="font-bold text-sm lg:text-base" id="modal-title">บันทึกยอดชำระเงิน</h3>
+                <button onclick="closeRecordModal()" class="text-white hover:text-emerald-100 text-sm">✕</button>
+            </div>
+            
+            <form onsubmit="handleFormSubmit(event)" class="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+                
+                <!-- Tab controller inside modal - synchronized with page active tab -->
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-xs font-semibold">
+                    <button type="button" id="modal-tab-cf" onclick="adjustModalFields('common-fee')" class="py-1.5 rounded-lg text-center bg-white text-emerald-700 shadow-sm transition-all">ค่าส่วนกลาง (ผูกบิล)</button>
+                    <button type="button" id="modal-tab-or" onclick="adjustModalFields('other-revenue')" class="py-1.5 rounded-lg text-center text-slate-600 transition-all">รายรับอื่น ๆ (อิสระ)</button>
+                </div>
+
+                <!-- Fields for COMMON FEE -->
+                <div id="modal-cf-fields" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ค้นหาและเลือกรอบบิลค่าส่วนกลาง <span class="text-red-500">*</span></label>
+                        <select id="modal-cf-bill-select" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="">-- ค้นหาและเลือกรอบบิลของบ้านค้างชำระ --</option>
+                            <option value="b1" data-house="39/1" data-amount="1050">39/1 - นายมานะ ใจดี (มิ.ย. 2569) - ยอดค้าง 1,050.00 ฿</option>
+                            <option value="b2" data-house="39/5" data-amount="1050">39/5 - นางสมใจ คิดดี (มิ.ย. 2569) - ยอดค้าง 1,050.00 ฿</option>
+                            <option value="b3" data-house="39/12" data-amount="1050">39/12 - นายสมบูรณ์ ดีงาม (พ.ค. 2569) - เกินกำหนด 1,050.00 ฿</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Fields for OTHER REVENUE -->
+                <div id="modal-or-fields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ประเภทรายรับเบ็ดเตล็ด <span class="text-red-500">*</span></label>
+                        <select id="modal-or-category" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="bank_interest">🏦 ดอกเบี้ยธนาคาร (Bank Deposit Interest)</option>
+                            <option value="construction_deposit">🏗️ เงินค้ำประกันการก่อสร้าง (Construction Deposit)</option>
+                            <option value="fine">⚠️ ค่าปรับต่าง ๆ (Fine / Penalty)</option>
+                            <option value="donation">🎁 เงินสนับสนุน/เงินบริจาค (Donation)</option>
+                            <option value="other">📦 อื่น ๆ ทั่วไป (Other Income)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">บ้านเลขที่/สมาชิกผู้ชำระ <span class="text-slate-400 font-normal">(ไม่บังคับ - เว้นว่างได้)</span></label>
+                        <select id="modal-or-member" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="null">-- ไม่เจาะจงรายบุคคล (เช่น ดอกเบี้ยธนาคาร หรือ เงินกองกลาง) --</option>
+                            <option value="39/1">บ้าน 39/1 - นายมานะ ใจดี</option>
+                            <option value="39/12">บ้าน 39/12 - นายสมบูรณ์ ดีงาม</option>
+                        </select>
+                        <p class="text-[10px] text-indigo-600 font-medium mt-1">✓ ดอกเบี้ยธนาคารจะเก็บข้อมูลแบบไร้รหัสสมาชิก (NULL) ป้องกันข้อผิดพลาด DB Schema</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">รายละเอียดการทำรายการ <span class="text-red-500">*</span></label>
+                        <input type="text" id="modal-or-description" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="เช่น ดอกเบี้ยออมทรัพย์ธนาคารกสิกรไทย งวดครึ่งปี">
+                    </div>
+                </div>
+
+                <!-- SHARED FIELDS -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ยอดเงินชำระ (บาท) <span class="text-red-500">*</span></label>
+                        <input type="number" step="0.01" id="modal-amount" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono font-semibold" placeholder="0.00" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">วันที่ชำระเงิน <span class="text-red-500">*</span></label>
+                        <input type="date" id="modal-date" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ช่องทาง <span class="text-red-500">*</span></label>
+                        <select id="modal-method" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <option value="bank_transfer">โอนผ่านธนาคาร (Bank Transfer)</option>
+                            <option value="cash">เงินสด (Cash)</option>
+                            <option value="qr">โมบายแบงก์กิ้ง QR</option>
+                            <option value="other">อื่น ๆ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">เลขใบเสร็จ (ถ้ามี)</label>
+                        <input type="text" id="modal-receipt-no" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="REC-XXXX">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">อ้างอิงเลขสลิปโอนเงิน (Transaction Ref ID)</label>
+                    <input type="text" id="modal-ref-id" class="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono" placeholder="เลขธุรกรรม เช่น PP2569...">
+                </div>
+
+                <!-- Simulation Info for Slip upload -->
+                <div class="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer">
+                    <span class="text-xl">📄</span>
+                    <p class="text-xs font-semibold text-slate-600 mt-1">คลิกเพื่ออัปโหลดไฟล์หลักฐานสลิป (ถ้ามี)</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">รองรับไฟล์ภาพ .png, .jpg สูงสุด 5MB</p>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex gap-2">
+                    <button type="button" onclick="closeRecordModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-xs hover:bg-slate-50 transition-colors">ยกเลิก</button>
+                    <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-md">บันทึกรายการ</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT FOR DYNAMIC INTERACTIVE BEHAVIORS -->
+    <script>
+        // CURRENT ACTIVE TAB STATE
+        let activeTab = 'common-fee';
+
+        // MOCK DATA
+        let commonFeeData = [
+            { id: 'cf-1', house: '39/1', owner: 'นายมานะ ใจดี', period: 'มิ.ย. 2569', due: 1050.00, paid: 0.00, status: 'pending', type: 'monthly' },
+            { id: 'cf-2', house: '39/5', owner: 'นางสมใจ คิดดี', period: 'มิ.ย. 2569', due: 1050.00, paid: 1050.00, status: 'paid', type: 'monthly' },
+            { id: 'cf-3', house: '39/12', owner: 'นายสมบูรณ์ ดีงาม', period: 'พ.ค. 2569', due: 1050.00, paid: 0.00, status: 'overdue', type: 'monthly' },
+            { id: 'cf-4', house: '39/18', owner: 'คุณอุษา เลิศรส', period: 'พ.ค. 2569', due: 1050.00, paid: 1050.00, status: 'paid', type: 'monthly' },
+            { id: 'cf-5', house: '39/22', owner: 'คุณกิตติศักดิ์ เจริญ', period: 'ปี 2569', due: 12600.00, paid: 0.00, status: 'pending', type: 'yearly' },
+        ];
+
+        let otherRevenueData = [
+            { id: 'or-1', date: '2026-06-01', category: 'bank_interest', desc: 'ดอกเบี้ยเงินฝากออมทรัพย์ธนาคารกรุงไทย (นิติบุคคล)', member: '-', amount: 1540.25, reconciled: true },
+            { id: 'or-2', date: '2026-06-03', category: 'construction_deposit', desc: 'เงินประกันต่อเติมหลังคาที่จอดรถ', member: '39/1', amount: 10000.00, reconciled: false },
+            { id: 'or-3', date: '2026-06-04', category: 'fine', desc: 'ค่าปรับทำเสียงดังยามวิกาลเกินขอบเขต', member: '39/12', amount: 1000.00, reconciled: true },
+            { id: 'or-4', date: '2026-06-05', category: 'donation', desc: 'เงินสนับสนุนจัดซื้ออุปกรณ์พ่นควันกำจัดยุงลาย', member: '39/5', amount: 5000.00, reconciled: false },
+        ];
+
+        // LOAD DATA
+        window.addEventListener('DOMContentLoaded', () => {
+            renderCommonFeeTable();
+            renderOtherRevenueTable();
+            
+            // Set default date input in modal to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('modal-date').value = today;
+
+            // Auto-populate amount based on chosen bill inside modal
+            document.getElementById('modal-cf-bill-select').addEventListener('change', (e) => {
+                const opt = e.target.selectedOptions[0];
+                if (opt && opt.value) {
+                    document.getElementById('modal-amount').value = opt.getAttribute('data-amount');
+                }
+            });
+        });
+
+        // SWITCH TAB (Unified Dashboard logic)
+        function switchTab(tab) {
+            activeTab = tab;
+            const contentCF = document.getElementById('content-common-fee');
+            const contentOR = document.getElementById('content-other-revenue');
+            
+            const btnCF = document.getElementById('tab-cf-btn');
+            const btnOR = document.getElementById('tab-or-btn');
+
+            const actionBtn = document.getElementById('main-action-btn');
+
+            if (tab === 'common-fee') {
+                contentCF.classList.remove('hidden');
+                contentOR.classList.add('hidden');
+                
+                // Style updates
+                btnCF.className = "flex-1 sm:flex-initial px-5 py-2 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-sm flex items-center justify-center gap-2";
+                btnOR.className = "flex-1 sm:flex-initial px-5 py-2 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
+
+                // Action button text
+                actionBtn.innerHTML = "<span>➕</span> บันทึกรับชำระค่าส่วนกลาง";
+            } else {
+                contentCF.classList.add('hidden');
+                contentOR.classList.remove('hidden');
+
+                // Style updates
+                btnCF.className = "flex-1 sm:flex-initial px-5 py-2 text-xs font-bold rounded-lg transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
+                btnOR.className = "flex-1 sm:flex-initial px-5 py-2 text-xs font-bold rounded-lg transition-all bg-white text-emerald-800 shadow-sm flex items-center justify-center gap-2";
+
+                // Action button text
+                actionBtn.innerHTML = "<span>➕</span> บันทึกรายรับอื่น ๆ (เช่น ดอกเบี้ย)";
+            }
+        }
+
+        // TRIGGER DYNAMIC MODAL
+        function triggerRecordPayment() {
+            openRecordModal(activeTab);
+        }
+
+        // MODAL CONFIG
+        function openRecordModal(defaultTab) {
+            const modal = document.getElementById('record-modal');
+            modal.classList.remove('hidden');
+            adjustModalFields(defaultTab);
+        }
+
+        function closeRecordModal() {
+            document.getElementById('record-modal').classList.add('hidden');
+        }
+
+        function adjustModalFields(type) {
+            const btnCF = document.getElementById('modal-tab-cf');
+            const btnOR = document.getElementById('modal-tab-or');
+            const cfFields = document.getElementById('modal-cf-fields');
+            const orFields = document.getElementById('modal-or-fields');
+            const amountInput = document.getElementById('modal-amount');
+            const modalTitle = document.getElementById('modal-title');
+
+            if (type === 'common-fee') {
+                btnCF.className = "py-1.5 rounded-lg text-center bg-white text-emerald-700 shadow-sm transition-all";
+                btnOR.className = "py-1.5 rounded-lg text-center text-slate-600 transition-all";
+                cfFields.classList.remove('hidden');
+                orFields.classList.add('hidden');
+                amountInput.value = '';
+                modalTitle.innerText = 'บันทึกชำระค่าส่วนกลาง (ผูกบิล)';
+            } else {
+                btnCF.className = "py-1.5 rounded-lg text-center text-slate-600 transition-all";
+                btnOR.className = "py-1.5 rounded-lg text-center bg-white text-emerald-700 shadow-sm transition-all";
+                cfFields.classList.add('hidden');
+                orFields.classList.remove('hidden');
+                amountInput.value = '';
+                modalTitle.innerText = 'บันทึกรายรับเบ็ดเตล็ด / ดอกเบี้ยธนาคาร';
+            }
+        }
+
+        // RENDER TABLES
+        function renderCommonFeeTable() {
+            const tbody = document.getElementById('cf-tbody');
+            tbody.innerHTML = '';
+            
+            commonFeeData.forEach(row => {
+                let statusBadge = '';
+                if (row.status === 'paid') {
+                    statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Paid ✔</span>';
+                } else if (row.status === 'overdue') {
+                    statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800">Overdue 🚨</span>';
+                } else {
+                    statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Pending ⏳</span>';
+                }
+
+                const actionButton = row.status !== 'paid' 
+                    ? `<button onclick="quickPayCF('${row.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all">จ่ายเงิน</button>`
+                    : `<span class="text-slate-400">ครบถ้วน</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-5 py-3.5 font-semibold text-slate-900">${row.house}</td>
+                    <td class="px-5 py-3.5">${row.owner}</td>
+                    <td class="px-5 py-3.5 text-slate-500 font-medium">${row.period}</td>
+                    <td class="px-5 py-3.5 text-right font-mono font-semibold">${row.due.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</td>
+                    <td class="px-5 py-3.5 text-right font-mono text-emerald-600 font-bold">${row.paid > 0 ? row.paid.toLocaleString('th-TH', {minimumFractionDigits: 2}) + ' ฿' : '-'}</td>
+                    <td class="px-5 py-3.5 text-center">${statusBadge}</td>
+                    <td class="px-5 py-3.5 text-center">${actionButton}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            document.getElementById('cf-count-label').innerText = `แสดงผล ${commonFeeData.length} รายการ`;
+        }
+
+        function renderOtherRevenueTable() {
+            const tbody = document.getElementById('or-tbody');
+            tbody.innerHTML = '';
+
+            const categoryLabels = {
+                bank_interest: '🏦 ดอกเบี้ยธนาคาร',
+                construction_deposit: '🏗️ ประกันต่อเติม',
+                fine: '⚠️ ค่าปรับ',
+                donation: '🎁 บริจาค/สนับสนุน',
+                other: '📦 รายรับอื่น ๆ'
+            };
+
+            otherRevenueData.forEach(row => {
+                const reconcileBadge = row.reconciled
+                    ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Matched ✔</span>'
+                    : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Unreconciled</span>';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-5 py-3.5 text-slate-500 font-mono">${row.date}</td>
+                    <td class="px-5 py-3.5 font-semibold text-slate-800">${categoryLabels[row.category] || row.category}</td>
+                    <td class="px-5 py-3.5 max-w-xs truncate" title="${row.desc}">${row.desc}</td>
+                    <td class="px-5 py-3.5 font-medium text-slate-600">${row.member === '-' ? '<span class="text-slate-400 font-normal">ส่วนกลาง (System)</span>' : 'บ้าน ' + row.member}</td>
+                    <td class="px-5 py-3.5 text-right font-mono font-bold text-slate-900">${row.amount.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</td>
+                    <td class="px-5 py-3.5 text-center">${reconcileBadge}</td>
+                    <td class="px-5 py-3.5 text-center">
+                        <button onclick="alert('แสดงรายละเอียดรายการ ID: ' + '${row.id}')" class="text-slate-400 hover:text-emerald-600 px-2">🔍</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('or-count-label').innerText = `แสดงผล ${otherRevenueData.length} รายการ`;
+        }
+
+        // QUICK REC FROM TABLE
+        function quickPayCF(id) {
+            openRecordModal('common-fee');
+            const selectEl = document.getElementById('modal-cf-bill-select');
+            
+            if (id === 'cf-1') selectEl.value = 'b1';
+            if (id === 'cf-3') selectEl.value = 'b3';
+
+            const event = new Event('change');
+            selectEl.dispatchEvent(event);
+        }
+
+        // FILTER LOGICS
+        function filterCommonFeeTable() {
+            const searchVal = document.getElementById('filter-cf-search').value.toLowerCase();
+            const statusVal = document.getElementById('filter-cf-status').value;
+            const typeVal = document.getElementById('filter-cf-type').value;
+
+            const tbody = document.getElementById('cf-tbody');
+            tbody.innerHTML = '';
+
+            let count = 0;
+            commonFeeData.forEach(row => {
+                const matchSearch = row.house.toLowerCase().includes(searchVal) || row.owner.toLowerCase().includes(searchVal);
+                const matchStatus = statusVal === 'all' || row.status === statusVal;
+                const matchType = typeVal === 'all' || row.type === typeVal;
+
+                if (matchSearch && matchStatus && matchType) {
+                    count++;
+                    let statusBadge = '';
+                    if (row.status === 'paid') {
+                        statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Paid ✔</span>';
+                    } else if (row.status === 'overdue') {
+                        statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800">Overdue 🚨</span>';
+                    } else {
+                        statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Pending ⏳</span>';
+                    }
+
+                    const actionButton = row.status !== 'paid' 
+                        ? `<button onclick="quickPayCF('${row.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all">จ่ายเงิน</button>`
+                        : `<span class="text-slate-400">ครบถ้วน</span>`;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50/80 transition-colors";
+                    tr.innerHTML = `
+                        <td class="px-5 py-3.5 font-semibold text-slate-900">${row.house}</td>
+                        <td class="px-5 py-3.5">${row.owner}</td>
+                        <td class="px-5 py-3.5 text-slate-500 font-medium">${row.period}</td>
+                        <td class="px-5 py-3.5 text-right font-mono font-semibold">${row.due.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</td>
+                        <td class="px-5 py-3.5 text-right font-mono text-emerald-600 font-bold">${row.paid > 0 ? row.paid.toLocaleString('th-TH', {minimumFractionDigits: 2}) + ' ฿' : '-'}</td>
+                        <td class="px-5 py-3.5 text-center">${statusBadge}</td>
+                        <td class="px-5 py-3.5 text-center">${actionButton}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+
+            document.getElementById('cf-count-label').innerText = `แสดงผล ${count} รายการ`;
+        }
+
+        function filterOtherRevenueTable() {
+            const searchVal = document.getElementById('filter-or-search').value.toLowerCase();
+            const categoryVal = document.getElementById('filter-or-category').value;
+            const reconcileVal = document.getElementById('filter-or-reconcile').value;
+
+            const categoryLabels = {
+                bank_interest: '🏦 ดอกเบี้ยธนาคาร',
+                construction_deposit: '🏗️ ประกันต่อเติม',
+                fine: '⚠️ ค่าปรับ',
+                donation: '🎁 บริจาค/สนับสนุน',
+                other: '📦 รายรับอื่น ๆ'
+            };
+
+            const tbody = document.getElementById('or-tbody');
+            tbody.innerHTML = '';
+
+            let count = 0;
+            otherRevenueData.forEach(row => {
+                const matchSearch = row.desc.toLowerCase().includes(searchVal) || row.member.toLowerCase().includes(searchVal);
+                const matchCategory = categoryVal === 'all' || row.category === categoryVal;
+                let matchReconcile = true;
+                if (reconcileVal === 'yes') matchReconcile = row.reconciled === true;
+                if (reconcileVal === 'no') matchReconcile = row.reconciled === false;
+
+                if (matchSearch && matchCategory && matchReconcile) {
+                    count++;
+                    const reconcileBadge = row.reconciled
+                        ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Matched ✔</span>'
+                        : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Unreconciled</span>';
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50/80 transition-colors";
+                    tr.innerHTML = `
+                        <td class="px-5 py-3.5 text-slate-500 font-mono">${row.date}</td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-800">${categoryLabels[row.category] || row.category}</td>
+                        <td class="px-5 py-3.5 max-w-xs truncate" title="${row.desc}">${row.desc}</td>
+                        <td class="px-5 py-3.5 font-medium text-slate-600">${row.member === '-' ? '<span class="text-slate-400 font-normal">ส่วนกลาง (System)</span>' : 'บ้าน ' + row.member}</td>
+                        <td class="px-5 py-3.5 text-right font-mono font-bold text-slate-900">${row.amount.toLocaleString('th-TH', {minimumFractionDigits: 2})} ฿</td>
+                        <td class="px-5 py-3.5 text-center">${reconcileBadge}</td>
+                        <td class="px-5 py-3.5 text-center">
+                            <button onclick="alert('แสดงรายละเอียดรายการ ID: ' + '${row.id}')" class="text-slate-400 hover:text-emerald-600 px-2">🔍</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+
+            document.getElementById('or-count-label').innerText = `แสดงผล ${count} รายการ`;
+        }
+
+        function resetCFFilters() {
+            document.getElementById('filter-cf-search').value = '';
+            document.getElementById('filter-cf-status').value = 'all';
+            document.getElementById('filter-cf-type').value = 'all';
+            renderCommonFeeTable();
+        }
+
+        function resetORFilters() {
+            document.getElementById('filter-or-search').value = '';
+            document.getElementById('filter-or-category').value = 'all';
+            document.getElementById('filter-or-reconcile').value = 'all';
+            renderOtherRevenueTable();
+        }
+
+        // HANDLE SUBMIT
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const isCF = !document.getElementById('modal-cf-fields').classList.contains('hidden');
+            const amount = parseFloat(document.getElementById('modal-amount').value);
+            const date = document.getElementById('modal-date').value;
+            const method = document.getElementById('modal-method').value;
+            const receipt = document.getElementById('modal-receipt-no').value || '-';
+            const refId = document.getElementById('modal-ref-id').value || '-';
+
+            if (isCF) {
+                const selectEl = document.getElementById('modal-cf-bill-select');
+                if (!selectEl.value) {
+                    alert('กรุณาเลือกรอบบิลค่าส่วนกลางก่อนค่ะ');
+                    return;
+                }
+                const opt = selectEl.selectedOptions[0];
+                const house = opt.getAttribute('data-house');
+                
+                // Update commonFeeData
+                const targetIdx = commonFeeData.findIndex(item => item.house === house);
+                if (targetIdx !== -1) {
+                    commonFeeData[targetIdx].paid = amount;
+                    commonFeeData[targetIdx].status = 'paid';
+                }
+                
+                alert(`บันทึกชำระค่าส่วนกลางสำเร็จ!\nบ้าน: ${house}\nยอด: ${amount} บาท\nวันที่: ${date}`);
+                renderCommonFeeTable();
+            } else {
+                const category = document.getElementById('modal-or-category').value;
+                const member = document.getElementById('modal-or-member').value;
+                const desc = document.getElementById('modal-or-description').value;
+
+                if (!desc) {
+                    alert('กรุณากรอกรายละเอียดของรายรับอื่น ๆ ด้วยค่ะ');
+                    return;
+                }
+
+                const newRow = {
+                    id: 'or-' + (otherRevenueData.length + 1),
+                    date: date,
+                    category: category,
+                    desc: desc,
+                    member: member === 'null' ? '-' : member,
+                    amount: amount,
+                    reconciled: false
+                };
+
+                otherRevenueData.unshift(newRow); // add to top
+                alert(`บันทึกรายรับอื่น ๆ สำเร็จ!\nประเภท: ${category}\nยอด: ${amount} บาท\nวันที่: ${date}\n(ในฐานข้อมูล PostgreSQL ยอดนี้จะมีค่า member_id เป็น NULL ได้อย่างสมบูรณ์แบบ!)`);
+                renderOtherRevenueTable();
+                
+                // Automatically switch to the other revenue tab
+                switchTab('other-revenue');
+            }
+
+            closeRecordModal();
+        }
+    </script>
+</body>
+</html>

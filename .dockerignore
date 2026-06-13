@@ -4,5 +4,4 @@
 node_modules
 .next
 .git
-public/uploads
 npm-debug.log*

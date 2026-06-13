@@ -15,14 +15,15 @@ export default function TopNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const toggleMenu = () => setMenuOpen((prev) => !prev);
+  const toggleMenu = () => setMenuOpen((prev: boolean) => !prev);
   const handleLogout = async () => {
     setMenuOpen(false);
     setUserMenuOpen(false);
     await signOut({ callbackUrl: uatPath("/login") });
   };
   const roles = user?.roles || [user?.role || "resident"];
-  const canFinance = Boolean(!userLoading && (user?.isAdmin || roles.some((role) => ["admin", "accountant", "manager"].includes(role))));
+  const canFinance = Boolean(!userLoading && (user?.isAdmin || roles.some((role: any) => ["admin", "accountant", "manager"].includes(role))));
+  const showAdmin = Boolean(!userLoading && user?.isAdmin);
   const mainItems = [
     { icon: "🏠", label: lang === "th" ? "แดชบอร์ด" : "Dashboard", href: "/dashboard" },
     { icon: "📢", label: lang === "th" ? "ประกาศ" : "Announcements", href: "/announcements" },
@@ -30,15 +31,24 @@ export default function TopNav() {
     { icon: "📄", label: lang === "th" ? "เอกสาร" : "Documents", href: "/documents" },
   ];
   const financeItems = [
+    { icon: "👥", label: lang === "th" ? "สมาชิก" : "Members", href: "/members" },
     { icon: "💰", label: lang === "th" ? "รายรับ" : "Revenue", href: "/revenue" },
+    { icon: "📄", label: lang === "th" ? "จัดการสลิปโอนเงิน" : "Payment Slips", href: "/payment-slips" },
     { icon: "🧾", label: lang === "th" ? "รายจ่าย" : "Expenses", href: "/expenses" },
     { icon: "🏦", label: lang === "th" ? "กระทบยอด" : "Reconciliation", href: "/reconciliation" },
     { icon: "📊", label: lang === "th" ? "รายงานการเงิน" : "Financial Reports", href: "/financial-reports" },
+    { icon: "📅", label: lang === "th" ? "รายงานค่าส่วนกลาง" : "Common Fee Report", href: "/common-fee-report" },
+  ];
+  const adminItems = [
+    { icon: "📢", label: lang === "th" ? "จัดการประกาศ" : "Announcements", href: "/admin/announcements" },
+    { icon: "📄", label: lang === "th" ? "จัดการเอกสาร" : "Documents", href: "/admin/documents" },
+    { icon: "🎫", label: lang === "th" ? "จัดการปัญหาร้องเรียน" : "Tickets", href: "/admin/tickets" },
+    { icon: "👥", label: lang === "th" ? "จัดการผู้ใช้" : "Users", href: "/admin/users" },
+    { icon: "🔔", label: lang === "th" ? "จัดการแจ้งเตือน" : "Notifications", href: "/admin/notifications" },
   ];
   const bottomItems = [
     { icon: "🔔", label: lang === "th" ? "แจ้งเตือน" : "Notifications", href: "/notifications" },
     { icon: "👤", label: lang === "th" ? "โปรไฟล์" : "Profile", href: "/profile" },
-    ...(userLoading || !user?.isAdmin ? [] : [{ icon: "🛠️", label: lang === "th" ? "ผู้ดูแล" : "Admin", href: "/admin" }]),
   ];
 
   return (
@@ -59,13 +69,13 @@ export default function TopNav() {
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-surface-200">
           <div className="flex items-center gap-3">
-            <img src="/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
+            <img src="/uat/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
             <div>
               <div className="text-sm font-semibold text-brand-700">
                 {lang === "th" ? "สวนเอก เลคปาร์ควิลล่า" : "Suan Eak Lake Park Villa"}
               </div>
               <div className="text-xs text-surface-500">
-                {lang === "th" ? "Lake Park Villa" : "Juristic Person"}
+                {lang === "th" ? "Suan Eak Lake Park Villa" : "Juristic Person"}
               </div>
             </div>
           </div>
@@ -123,6 +133,28 @@ export default function TopNav() {
             </a>
           ))}
 
+          {showAdmin && (
+            <div className="rounded-2xl border border-surface-100 bg-surface-50/70 py-1">
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-700 font-medium">
+                <span className="text-lg">🛠️</span>
+                <span className="text-sm">{lang === "th" ? "ผู้ดูแลระบบ" : "Admin Console"}</span>
+              </div>
+              <div className="pl-7 pr-2 pb-2 space-y-1">
+                {adminItems.map((item) => (
+                  <a
+                    key={item.href}
+                    href={uatPath(item.href)}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-surface-600 hover:bg-white hover:text-brand-700 transition-colors text-sm"
+                  >
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="pt-4 border-t border-surface-200">
             <button
               onClick={handleLogout}
@@ -143,7 +175,7 @@ export default function TopNav() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <img src="/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-8 h-8 rounded-md object-contain bg-white ring-1 ring-brand-100 p-0.5" />
+          <img src="/uat/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-8 h-8 rounded-md object-contain bg-white ring-1 ring-brand-100 p-0.5" />
           <span className="font-semibold text-brand-700 hidden sm:inline text-sm lg:text-base">
             {lang === "th" ? "สวนเอก เลคปาร์ควิลล่า" : "Suan Eak Lake Park Villa"}
           </span>

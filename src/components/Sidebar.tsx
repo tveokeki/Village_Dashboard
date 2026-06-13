@@ -20,14 +20,24 @@ const navItems: NavItem[] = [
   { icon: "📄", label: { th: "เอกสาร", en: "Documents" }, href: "/documents" },
   { icon: "🔔", label: { th: "แจ้งเตือน", en: "Notifications" }, href: "/notifications" },
   { icon: "👤", label: { th: "โปรไฟล์", en: "Profile" }, href: "/profile" },
-  { icon: "🛠️", label: { th: "ผู้ดูแล", en: "Admin" }, href: "/admin", adminOnly: true },
+];
+
+const adminItems: NavItem[] = [
+  { icon: "📢", label: { th: "จัดการประกาศ", en: "Announcements" }, href: "/admin/announcements" },
+  { icon: "📄", label: { th: "จัดการเอกสาร", en: "Documents" }, href: "/admin/documents" },
+  { icon: "🎫", label: { th: "จัดการปัญหาร้องเรียน", en: "Tickets" }, href: "/admin/tickets" },
+  { icon: "👥", label: { th: "จัดการผู้ใช้", en: "Users" }, href: "/admin/users" },
+  { icon: "🔔", label: { th: "จัดการแจ้งเตือน", en: "Notifications" }, href: "/admin/notifications" },
 ];
 
 const financeItems: NavItem[] = [
+  { icon: "👥", label: { th: "สมาชิก", en: "Members" }, href: "/members" },
   { icon: "💰", label: { th: "รายรับ", en: "Revenue" }, href: "/revenue" },
+  { icon: "📄", label: { th: "จัดการสลิปโอนเงิน", en: "Payment Slips" }, href: "/payment-slips" },
   { icon: "🧾", label: { th: "รายจ่าย", en: "Expenses" }, href: "/expenses" },
   { icon: "🏦", label: { th: "กระทบยอด", en: "Reconciliation" }, href: "/reconciliation" },
   { icon: "📊", label: { th: "รายงานการเงิน", en: "Financial Reports" }, href: "/financial-reports" },
+  { icon: "📅", label: { th: "รายงานค่าส่วนกลาง", en: "Common Fee Report" }, href: "/common-fee-report" },
 ];
 
 const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
@@ -43,9 +53,11 @@ export default function Sidebar() {
   const { lang } = useLanguage();
   const { user, loading: userLoading } = useCurrentUser();
   const roles = user?.roles || [user?.role || "resident"];
-  const canFinance = Boolean(!userLoading && (user?.isAdmin || roles.some((role) => ["admin", "accountant", "manager"].includes(role))));
-  const visibleNavItems = navItems.filter((item) => !item.adminOnly || (!userLoading && user?.isAdmin));
+  const canFinance = Boolean(!userLoading && (user?.isAdmin || roles.some((role: string) => ["admin", "accountant", "manager"].includes(role))));
+  const visibleNavItems = navItems;
   const financeActive = financeItems.some((item) => isActive(pathname, item.href));
+  const adminActive = adminItems.some((item) => isActive(pathname, item.href));
+  const showAdmin = Boolean(!userLoading && user?.isAdmin);
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: uatPath("/login") });
@@ -54,13 +66,13 @@ export default function Sidebar() {
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-surface-200 h-screen sticky top-0">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-surface-200">
-        <img src="/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
+        <img src="/uat/logo-suan-ake.png" alt="Suan Eak Lake Park Villa logo" className="w-10 h-10 rounded-lg object-contain bg-white ring-1 ring-brand-100 p-0.5" />
         <div>
           <div className="text-sm font-semibold text-brand-700">
             {lang === "th" ? "สวนเอก เลคปาร์ควิลล่า" : "Suan Eak Lake Park Villa"}
           </div>
           <div className="text-xs text-surface-500">
-            {lang === "th" ? "Lake Park Villa" : "Juristic Person"}
+            {lang === "th" ? "Suan Eak Lake Park Villa" : "Juristic Person"}
           </div>
         </div>
       </div>
@@ -129,6 +141,34 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {showAdmin && (
+          <div className={`rounded-2xl border transition-colors ${adminActive ? "bg-brand-50/60 border-brand-200" : "border-transparent"}`}>
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${adminActive ? "text-brand-700 font-medium" : "text-surface-700"}`}>
+              <span className="text-lg">🛠️</span>
+              <span className="text-sm">{lang === "th" ? "ผู้ดูแลระบบ" : "Admin"}</span>
+            </div>
+            <div className="pb-2 pl-7 pr-2 space-y-1">
+              {adminItems.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={uatPath(item.href)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                      active
+                        ? "bg-white text-brand-700 font-medium shadow-sm"
+                        : "text-surface-600 hover:bg-surface-100 hover:text-surface-800"
+                    }`}
+                  >
+                    <span>{item.icon}</span>
+                    <span>{item.label[lang]}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </nav>
 
       <div className="border-t border-surface-200 p-3">

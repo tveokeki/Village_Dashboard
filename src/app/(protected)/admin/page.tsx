@@ -1,18 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { useLanguage } from "@/components/LanguageContext";
 import Toast from "@/components/Toast";
-import { DropdownGroups, fetchDropdownGroups, optionText, optionWithIcon } from "@/lib/dropdown-client";
+import { DropdownGroups, fetchDropdownGroups, optionText, optionWithIcon, optionClass } from "@/lib/dropdown-client";
 
 const UAT_BASE_PATH = process.env.NEXT_PUBLIC_UAT_BASE_PATH || "";
 const uatPath = (path: string) => `${UAT_BASE_PATH}${path}`;
 
 type Tab = "announcements" | "documents" | "tickets" | "users" | "notifications";
 
-export default function AdminPage() {
+export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
   const { lang } = useLanguage();
-  const [tab, setTab] = useState<Tab>("announcements");
+  const [tab, setTab] = useState<Tab>(defaultTab || "announcements");
+
+  useEffect(() => {
+    if (defaultTab) {
+      setTab(defaultTab);
+    }
+  }, [defaultTab]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -28,6 +36,9 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+  const [ticketPage, setTicketPage] = useState(1);
+  const [ticketPageSize, setTicketPageSize] = useState(20);
 
   const t = (th: string, en: string) => (lang === "th" ? th : en);
   const options = (group: string) => dropdownGroups[group] || [];
@@ -60,6 +71,7 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
+    setTicketPage(1);
     const timer = window.setTimeout(() => loadAll(), 300);
     return () => window.clearTimeout(timer);
   }, [ticketFilter, ticketSearch]);
@@ -255,6 +267,17 @@ export default function AdminPage() {
     await loadAll();
   }
 
+  const formatDate = (d: string) => {
+    if (!d) return "-";
+    return new Date(d).toLocaleString(lang === "th" ? "th-TH" : "en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const tabs: { key: Tab; th: string; en: string; icon: string }[] = [
     { key: "announcements", th: "ประกาศ", en: "Announcements", icon: "📢" },
     { key: "documents", th: "เอกสาร", en: "Documents", icon: "📄" },
@@ -272,7 +295,7 @@ export default function AdminPage() {
       </div>
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-        {tabs.map(x => <button key={x.key} onClick={() => setTab(x.key)} className={`shrink-0 px-3 py-2 rounded-lg text-sm ${tab===x.key ? "bg-brand-500 text-white" : "bg-white border border-surface-200 text-surface-700"}`}>{x.icon} {t(x.th, x.en)}</button>)}
+        {tabs.map(x => <Link key={x.key} href={uatPath(`/admin/${x.key}`)} className={`shrink-0 px-3 py-2 rounded-lg text-sm ${tab===x.key ? "bg-brand-500 text-white" : "bg-white border border-surface-200 text-surface-700"}`}>{x.icon} {t(x.th, x.en)}</Link>)}
       </div>
 
       {message && <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">{message}</div>}
@@ -343,58 +366,278 @@ export default function AdminPage() {
           </div>
         </div>
         <div className="space-y-3">
-          {tickets.length === 0 && <div className="card text-center text-surface-500 text-sm py-8">{t("ไม่มีรายการปัญหา", "No tickets")}</div>}
-          {tickets.map(ticket => <div key={ticket.id} className="card space-y-3">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="font-mono text-xs text-surface-500">{ticket.ticket_number}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs">{label("ticket_status", ticket.status)}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-surface-100 text-surface-700 text-xs">{label("ticket_priority", ticket.priority)}</span>
-                </div>
-                <h3 className="font-semibold text-surface-900 text-sm">{ticket.problem_title}</h3>
-                {ticket.image_path && <a href={uatPath(`/api/tickets/${ticket.id}/image`)} target="_blank" rel="noreferrer" className="mt-2 block w-32 h-24 rounded-xl overflow-hidden border border-surface-200 bg-surface-50"><img src={uatPath(`/api/tickets/${ticket.id}/image`)} alt={ticket.problem_title} className="w-full h-full object-cover" loading="lazy" /></a>}
-                <p className="text-sm text-surface-600 mt-1 whitespace-pre-wrap">{ticket.problem_description}</p>
-                <div className="text-xs text-surface-500 mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                  <span>{t("บ้านเลขที่", "House")}: {ticket.house_number || "-"}</span>
-                  <span>{t("หมวด", "Category")}: {labelIcon("problem_category", ticket.problem_category)}</span>
-                  <span>{new Date(ticket.reported_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}</span>
-                </div>
-              </div>
-              <button onClick={() => deleteTicket(ticket.id)} className="text-red-600 text-sm shrink-0 self-start">Delete</button>
-            </div>
-            <form onSubmit={(e) => updateTicket(e, ticket.id)} className="grid md:grid-cols-4 gap-2 pt-3 border-t border-surface-100">
-              <select name="status" defaultValue={ticket.status} className="input-field">
-                {options("ticket_status").map(s => <option key={s.code} value={s.code}>{optionText(dropdownGroups, "ticket_status", s.code, lang, s.code)}</option>)}
-              </select>
-              <select name="priority" defaultValue={ticket.priority} className="input-field">
-                {options("ticket_priority").map(p => <option key={p.code} value={p.code}>{optionText(dropdownGroups, "ticket_priority", p.code, lang, p.code)}</option>)}
-              </select>
-              <input name="assigned_to" defaultValue={ticket.assigned_to || ""} placeholder={t("ผู้รับผิดชอบ", "Assigned to")} className="input-field" />
-              <button className="btn-primary">{t("อัปเดต", "Update")}</button>
-              <textarea name="progress_note" placeholder={t("เพิ่มบันทึกความคืบหน้าใหม่ เช่น ดำเนินการติดต่อช่างแล้ว", "Add a new progress note, e.g. technician contacted")} className="input-field md:col-span-4 min-h-20" />
-            </form>
-            <div className="pt-3 border-t border-surface-100">
-              <h4 className="text-xs font-semibold text-surface-700 mb-2">{t("ประวัติความคืบหน้า", "Progress history")}</h4>
-              <div className="space-y-2">
-                {(ticket.progress_logs || []).length === 0 && <p className="text-xs text-surface-400">{t("ยังไม่มีบันทึกความคืบหน้า", "No progress notes yet")}</p>}
-                {(ticket.progress_logs || []).map((log: any) => (
-                  <div key={log.id} className="rounded-xl bg-surface-50 border border-surface-100 p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-surface-500">
-                        <span>{new Date(log.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}</span>
-                        {log.created_by_name && <span>• {log.created_by_name}</span>}
-                        {log.status && <span className="px-1.5 py-0.5 rounded bg-brand-50 text-brand-700">{label("ticket_status", log.status)}</span>}
-                      </div>
-                      {log.can_edit && <button type="button" onClick={() => editTicketLog(ticket.id, log)} className="text-xs text-brand-700 hover:underline">{t("แก้ไข", "Edit")}</button>}
+          {(() => {
+            const sortedTickets = [...tickets].sort((a, b) => {
+              // 1. Status: NOT closed/cancelled first
+              const aClosed = a.status === "closed" || a.status === "cancelled";
+              const bClosed = b.status === "closed" || b.status === "cancelled";
+              if (aClosed !== bClosed) {
+                return aClosed ? 1 : -1;
+              }
+
+              // 2. Priority: Urgent -> High -> Medium -> Low
+              const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
+              const aPri = priorityOrder[a.priority] || 0;
+              const bPri = priorityOrder[b.priority] || 0;
+              if (aPri !== bPri) {
+                return bPri - aPri;
+              }
+
+              // 3. Date/Time: Oldest to newest (reported_at)
+              const aTime = new Date(a.reported_at).getTime();
+              const bTime = new Date(b.reported_at).getTime();
+              return aTime - bTime;
+            });
+
+            if (sortedTickets.length === 0) {
+              return <div className="card text-center text-surface-500 text-sm py-8">{t("ไม่มีรายการปัญหา", "No tickets")}</div>;
+            }
+
+            const totalItems = sortedTickets.length;
+            const totalPages = Math.ceil(totalItems / ticketPageSize);
+            const currentPage = Math.min(Math.max(1, ticketPage), totalPages || 1);
+            const startIndex = (currentPage - 1) * ticketPageSize;
+            const endIndex = startIndex + ticketPageSize;
+            const paginatedTickets = sortedTickets.slice(startIndex, endIndex);
+
+            const renderTicketDetail = (ticket: any) => (
+              <div className="space-y-4 text-left">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 bg-white p-4 rounded-xl border border-surface-200">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-surface-500 mb-2 flex flex-wrap gap-x-3 gap-y-1">
+                      <span><strong>{t("เลขที่", "Ticket #")}:</strong> {ticket.ticket_number}</span>
+                      <span><strong>{t("หมวดหมู่", "Category")}:</strong> {labelIcon("problem_category", ticket.problem_category)}</span>
+                      <span><strong>{t("เวลาที่แจ้ง", "Reported At")}:</strong> {formatDate(ticket.reported_at)}</span>
                     </div>
-                    <p className="text-sm text-surface-700 whitespace-pre-wrap">{log.note}</p>
-                    {log.edited_at && <p className="text-[11px] text-surface-400 mt-1">{t("แก้ไขล่าสุด", "Edited")}: {new Date(log.edited_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")} {log.edited_by_name ? `• ${log.edited_by_name}` : ""}</p>}
+                    <h4 className="font-semibold text-surface-900 text-sm mb-2">{t("รายละเอียดปัญหา", "Problem Details")}</h4>
+                    <p className="text-sm text-surface-600 whitespace-pre-wrap bg-surface-50 p-3 rounded-lg border border-surface-100">{ticket.problem_description}</p>
+                    {ticket.image_path && (
+                      <div className="mt-3">
+                        <span className="text-xs font-semibold text-surface-700 block mb-1">{t("รูปภาพประกอบ", "Attached Image")}</span>
+                        <a href={uatPath(`/api/tickets/${ticket.id}/image`)} target="_blank" rel="noreferrer" className="inline-block w-48 h-36 rounded-xl overflow-hidden border border-surface-200 bg-surface-50">
+                          <img src={uatPath(`/api/tickets/${ticket.id}/image`)} alt={ticket.problem_title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-200" loading="lazy" />
+                        </a>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  <button onClick={() => deleteTicket(ticket.id)} className="text-red-600 hover:text-red-800 text-sm shrink-0 font-medium px-3 py-1 border border-red-200 hover:border-red-300 rounded-lg hover:bg-red-50 transition-colors self-start">{t("ลบรายการ", "Delete")}</button>
+                </div>
+
+                <form onSubmit={(e) => updateTicket(e, ticket.id)} className="bg-white p-4 rounded-xl border border-surface-200 grid md:grid-cols-4 gap-3">
+                  <div className="md:col-span-4">
+                    <h4 className="font-semibold text-surface-900 text-sm">{t("อัปเดตและบันทึกความคืบหน้า", "Update & Log Progress")}</h4>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-surface-500 font-medium">{t("สถานะ", "Status")}</label>
+                    <select name="status" defaultValue={ticket.status} className="input-field">
+                      {options("ticket_status").map(s => <option key={s.code} value={s.code}>{optionText(dropdownGroups, "ticket_status", s.code, lang, s.code)}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-surface-500 font-medium">{t("ความสำคัญ", "Priority")}</label>
+                    <select name="priority" defaultValue={ticket.priority} className="input-field">
+                      {options("ticket_priority").map(p => <option key={p.code} value={p.code}>{optionText(dropdownGroups, "ticket_priority", p.code, lang, p.code)}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1 md:col-span-2">
+                    <label className="text-xs text-surface-500 font-medium">{t("ผู้รับผิดชอบ", "Assigned To")}</label>
+                    <input name="assigned_to" defaultValue={ticket.assigned_to || ""} placeholder={t("ผู้รับผิดชอบ", "Assigned to")} className="input-field" />
+                  </div>
+                  <div className="md:col-span-4 flex flex-col gap-1">
+                    <label className="text-xs text-surface-500 font-medium">{t("บันทึกความคืบหน้าใหม่", "New Progress Note")}</label>
+                    <textarea name="progress_note" placeholder={t("เพิ่มบันทึกความคืบหน้าใหม่ เช่น ดำเนินการติดต่อช่างแล้ว", "Add a new progress note, e.g. technician contacted")} className="input-field min-h-20" />
+                  </div>
+                  <div className="md:col-span-4 flex justify-end">
+                    <button className="btn-primary px-6 py-2">{t("บันทึกความคืบหน้า", "Save & Update")}</button>
+                  </div>
+                </form>
+
+                <div className="bg-white p-4 rounded-xl border border-surface-200">
+                  <h4 className="text-sm font-semibold text-surface-900 mb-3">{t("ประวัติความคืบหน้า", "Progress history")}</h4>
+                  <div className="space-y-3">
+                    {(ticket.progress_logs || []).length === 0 && <p className="text-xs text-surface-400 bg-surface-50 p-3 rounded-lg border border-dashed border-surface-200 text-center">{t("ยังไม่มีบันทึกความคืบหน้า", "No progress notes yet")}</p>}
+                    {(ticket.progress_logs || []).map((log: any) => (
+                      <div key={log.id} className="rounded-xl bg-surface-50 border border-surface-100 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-surface-500">
+                            <span>{new Date(log.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}</span>
+                            {log.created_by_name && <span>• {log.created_by_name}</span>}
+                            {log.status && <span className="px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 font-medium">{label("ticket_status", log.status)}</span>}
+                          </div>
+                          {log.can_edit && <button type="button" onClick={() => editTicketLog(ticket.id, log)} className="text-xs text-brand-700 hover:underline">{t("แก้ไข", "Edit")}</button>}
+                        </div>
+                        <p className="text-sm text-surface-700 whitespace-pre-wrap mt-1">{log.note}</p>
+                        {log.edited_at && <p className="text-[11px] text-surface-400 mt-1">{t("แก้ไขล่าสุด", "Edited")}: {new Date(log.edited_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")} {log.edited_by_name ? `• ${log.edited_by_name}` : ""}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>)}
+            );
+
+            const paginationControls = (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-surface-200 mt-4 text-left">
+                <div className="text-sm text-surface-500">
+                  {t(
+                    `แสดง ${totalItems > 0 ? startIndex + 1 : 0} ถึง ${Math.min(endIndex, totalItems)} จากทั้งหมด ${totalItems} รายการ`,
+                    `Showing ${totalItems > 0 ? startIndex + 1 : 0} to ${Math.min(endIndex, totalItems)} of ${totalItems} items`
+                  )}
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Page size selector */}
+                  <div className="flex items-center gap-1.5 mr-2">
+                    <span className="text-sm text-surface-500">{t("รายการต่อหน้า:", "Items per page:")}</span>
+                    <select
+                      value={ticketPageSize}
+                      onChange={(e) => {
+                        setTicketPageSize(Number(e.target.value));
+                        setTicketPage(1);
+                      }}
+                      className="input-field py-1 px-2 text-xs w-20 h-8"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      {/* Previous Button */}
+                      <button
+                        type="button"
+                        disabled={currentPage === 1}
+                        onClick={() => setTicketPage(currentPage - 1)}
+                        className="px-3 py-1.5 rounded-lg border border-surface-200 text-sm text-surface-600 hover:bg-surface-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {t("ก่อนหน้า", "Prev")}
+                      </button>
+
+                      {/* Page numbers */}
+                      {Array.from({ length: totalPages }, (_, idx) => {
+                        const pageNum = idx + 1;
+                        const isCurrent = pageNum === currentPage;
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => setTicketPage(pageNum)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                              isCurrent
+                                ? "bg-brand-500 text-white"
+                                : "bg-white border border-surface-200 text-surface-600 hover:bg-surface-50"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+
+                      {/* Next Button */}
+                      <button
+                        type="button"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setTicketPage(currentPage + 1)}
+                        className="px-3 py-1.5 rounded-lg border border-surface-200 text-sm text-surface-600 hover:bg-surface-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {t("ถัดไป", "Next")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+
+            return (
+              <>
+                {/* Desktop Table */}
+                <div className="hidden md:block bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-surface-50 text-surface-600 font-medium text-xs uppercase tracking-wider border-b border-surface-200">
+                      <tr>
+                        <th className="px-4 py-3">{t("หัวข้อ", "Topic")}</th>
+                        <th className="px-4 py-3">{t("บ้านเลขที่", "House #")}</th>
+                        <th className="px-4 py-3">{t("เวลาที่แจ้ง", "Reported At")}</th>
+                        <th className="px-4 py-3">{t("ความสำคัญ", "Priority")}</th>
+                        <th className="px-4 py-3">{t("สถานะ", "Status")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedTickets.map((ticket) => {
+                        const isExpanded = expandedTicketId === ticket.id;
+                        return (
+                          <Fragment key={ticket.id}>
+                            <tr className={`border-t border-surface-200 hover:bg-surface-50 cursor-pointer transition-colors ${isExpanded ? "bg-surface-50" : "bg-white"}`} onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}>
+                              <td className="px-4 py-4 font-medium text-surface-800">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs text-surface-400">[{ticket.ticket_number}]</span>
+                                  <span>{ticket.problem_title}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 text-surface-600">{ticket.house_number || "-"}</td>
+                              <td className="px-4 py-4 text-surface-600">{formatDate(ticket.reported_at)}</td>
+                              <td className="px-4 py-4">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${optionClass(dropdownGroups, "ticket_priority", ticket.priority, "bg-surface-200 text-surface-600")}`}>
+                                  {label("ticket_priority", ticket.priority)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4">
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${optionClass(dropdownGroups, "ticket_status", ticket.status, "bg-surface-200 text-surface-700 border border-surface-300")}`}>
+                                  {label("ticket_status", ticket.status)}
+                                </span>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={5} className="px-6 py-6 bg-surface-50 border-t border-b border-surface-200">
+                                  {renderTicketDetail(ticket)}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile List */}
+                <div className="md:hidden space-y-3">
+                  {paginatedTickets.map((ticket) => {
+                    const isExpanded = expandedTicketId === ticket.id;
+                    return (
+                      <div key={ticket.id} className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
+                        <div className="p-4 cursor-pointer hover:bg-surface-50 transition-colors" onClick={() => setExpandedTicketId(isExpanded ? null : ticket.id)}>
+                          <div className="flex items-start justify-between mb-2">
+                            <span className="font-mono text-xs text-surface-400">[{ticket.ticket_number}]</span>
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${optionClass(dropdownGroups, "ticket_status", ticket.status, "bg-surface-200 text-surface-700 border border-surface-300")}`}>
+                              {label("ticket_status", ticket.status)}
+                            </span>
+                          </div>
+                          <h3 className="font-semibold text-surface-900 text-sm mb-2">{ticket.problem_title}</h3>
+                          <div className="grid grid-cols-2 gap-y-1 text-xs text-surface-500">
+                            <div>{t("บ้านเลขที่", "House #")}: {ticket.house_number || "-"}</div>
+                            <div>{t("ความสำคัญ", "Priority")}: <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${optionClass(dropdownGroups, "ticket_priority", ticket.priority, "bg-surface-200 text-surface-600")}`}>{label("ticket_priority", ticket.priority)}</span></div>
+                            <div className="col-span-2 mt-1">{t("เวลาที่แจ้ง", "Reported At")}: {formatDate(ticket.reported_at)}</div>
+                          </div>
+                        </div>
+                        {isExpanded && (
+                          <div className="px-4 pb-6 pt-4 bg-surface-50 border-t border-surface-100">
+                            {renderTicketDetail(ticket)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination Controls */}
+                {paginationControls}
+              </>
+            );
+          })()}
         </div>
       </section>}
 
@@ -467,4 +710,8 @@ export default function AdminPage() {
       </section>}
     </div>
   );
+}
+
+export default function AdminPage() {
+  redirect("/uat/admin/announcements");
 }

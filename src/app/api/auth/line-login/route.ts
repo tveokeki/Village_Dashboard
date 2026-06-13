@@ -4,7 +4,7 @@ import crypto from "crypto";
 export async function GET(req: NextRequest) {
   const callbackUrl = req.nextUrl.searchParams.get("callbackUrl") || "/dashboard";
   const state = crypto.randomUUID();
-  const redirectUri = "https://suan-ake.cloud/api/auth/callback/line";
+  const redirectUri = "https://suan-ake.cloud/uat/api/auth/callback/line";
 
   const params = new URLSearchParams({
     response_type: "code",

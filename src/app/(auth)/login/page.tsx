@@ -29,7 +29,7 @@ export default function LoginPage() {
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-brand-500 to-brand-400 rounded-t-2xl h-48 md:h-52 flex flex-col items-center justify-center text-white">
           <div className="w-28 h-28 rounded-full bg-white/90 p-2 flex items-center justify-center mb-3 shadow-lg ring-1 ring-white/70">
-            <img src="/logo-suan-ake.png" alt={t("โลโก้สวนเอก เลคปาร์ควิลล่า", "Suan Eak Lake Park Villa logo")} className="w-full h-full object-contain" />
+            <img src="/uat/logo-suan-ake.png" alt={t("โลโก้สวนเอก เลคปาร์ควิลล่า", "Suan Eak Lake Park Villa logo")} className="w-full h-full object-contain" />
           </div>
           <h1 className="text-lg md:text-xl font-semibold">
             {t("สวนเอก เลคปาร์ควิลล่า", "Suan Eak Lake Park Villa")}
@@ -48,7 +48,7 @@ export default function LoginPage() {
           {/* LINE Sign-in */}
           <div className="space-y-3">
             <a
-              href={`/api/auth/line-login?callbackUrl=${encodeURIComponent("/dashboard")}`}
+              href={`/uat/api/auth/line-login?callbackUrl=${encodeURIComponent("/uat/dashboard")}`}
               className="w-full bg-[#06C750] text-white rounded-xl px-6 py-3 font-medium flex items-center justify-center gap-2 hover:bg-[#05b348] transition-colors text-sm"
             >
               <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
