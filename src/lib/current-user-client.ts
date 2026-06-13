@@ -6,6 +6,9 @@ export type CurrentUser = {
   id: string;
   email: string;
   name: string;
+  displayName?: string;
+  houseNumber?: string;
+  phone?: string;
   role: string;
   roles?: string[];
   isAdmin: boolean;

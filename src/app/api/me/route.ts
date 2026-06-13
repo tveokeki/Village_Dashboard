@@ -35,7 +35,7 @@ export async function GET() {
     }
 
     const result = await query(
-      `SELECT id, email, display_name, role, is_admin, password_hash IS NOT NULL AS has_password
+      `SELECT id, email, display_name, house_number, phone, role, is_admin, password_hash IS NOT NULL AS has_password
        FROM slip_processing.web_users
        WHERE id = $1 AND deleted_at IS NULL`,
       [user.id]
@@ -57,6 +57,9 @@ export async function GET() {
         id: dbUser.id,
         email: dbUser.email,
         name: dbUser.display_name || user.name || dbUser.email,
+        displayName: dbUser.display_name || "",
+        houseNumber: dbUser.house_number || "",
+        phone: dbUser.phone || "",
         role: dbUser.role || "resident",
         roles,
         isAdmin,
@@ -67,5 +70,35 @@ export async function GET() {
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to load current user" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { displayName, houseNumber, phone } = await req.json();
+
+    await query(
+      `UPDATE slip_processing.web_users
+       SET display_name = COALESCE($1, display_name),
+           house_number = COALESCE($2, house_number),
+           phone = COALESCE($3, phone),
+           updated_at = NOW()
+       WHERE id = $4 AND deleted_at IS NULL`,
+      [
+        displayName !== undefined ? displayName : null,
+        houseNumber !== undefined ? houseNumber : null,
+        phone !== undefined ? phone : null,
+        user.id
+      ]
+    );
+
+    return NextResponse.json({ success: true, message: "Profile updated successfully" });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed to update profile" }, { status: 500 });
   }
 }
