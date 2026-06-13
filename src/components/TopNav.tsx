@@ -207,12 +207,16 @@ export default function TopNav() {
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen((prev) => !prev)}
-              className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-brand-500 text-white flex items-center justify-center font-semibold text-xs lg:text-sm flex-shrink-0 hover:bg-brand-600 transition-colors"
+              className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-brand-500 text-white flex items-center justify-center font-semibold text-xs lg:text-sm flex-shrink-0 hover:bg-brand-600 transition-colors overflow-hidden"
               aria-haspopup="menu"
               aria-expanded={userMenuOpen}
               title={lang === "th" ? "เมนูผู้ใช้" : "User menu"}
             >
-              {(user?.name || user?.email || (lang === "th" ? "ส" : "U")).slice(0, 1).toUpperCase()}
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                (user?.name || user?.email || (lang === "th" ? "ส" : "U")).slice(0, 1).toUpperCase()
+              )}
             </button>
             {userMenuOpen && (
               <>

@@ -9,6 +9,9 @@ export type CurrentUser = {
   displayName?: string;
   houseNumber?: string;
   phone?: string;
+  avatarUrl?: string | null;
+  area?: number | null;
+  maintenanceFee?: number | null;
   role: string;
   roles?: string[];
   isAdmin: boolean;

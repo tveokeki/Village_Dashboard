@@ -35,7 +35,7 @@ export async function GET() {
     }
 
     const result = await query(
-      `SELECT id, email, display_name, house_number, phone, role, is_admin, password_hash IS NOT NULL AS has_password
+      `SELECT id, email, display_name, house_number, phone, avatar_url, role, is_admin, password_hash IS NOT NULL AS has_password
        FROM slip_processing.web_users
        WHERE id = $1 AND deleted_at IS NULL`,
       [user.id]
@@ -44,6 +44,24 @@ export async function GET() {
     const dbUser = result.rows[0];
     if (!dbUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Query member info (area and maintenance_fee)
+    let area = null;
+    let maintenanceFee = null;
+    if (dbUser.id || dbUser.house_number) {
+      const memberRes = await query(
+        `SELECT area, maintenance_fee 
+         FROM slip_processing.members 
+         WHERE (web_user_id = $1 OR (house_number = $2 AND house_number IS NOT NULL AND house_number <> '')) AND deleted_at IS NULL 
+         ORDER BY CASE WHEN web_user_id = $1 THEN 1 ELSE 2 END 
+         LIMIT 1`,
+        [dbUser.id, dbUser.house_number || ""]
+      );
+      if (memberRes.rows.length > 0) {
+        area = memberRes.rows[0].area;
+        maintenanceFee = memberRes.rows[0].maintenance_fee;
+      }
     }
 
     const authProvider = await getSessionProvider(dbUser.email);
@@ -60,6 +78,9 @@ export async function GET() {
         displayName: dbUser.display_name || "",
         houseNumber: dbUser.house_number || "",
         phone: dbUser.phone || "",
+        avatarUrl: dbUser.avatar_url || null,
+        area: area !== null ? Number(area) : null,
+        maintenanceFee: maintenanceFee !== null ? Number(maintenanceFee) : null,
         role: dbUser.role || "resident",
         roles,
         isAdmin,

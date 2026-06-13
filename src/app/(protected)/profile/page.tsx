@@ -87,6 +87,39 @@ export default function ProfilePage() {
       <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-6 mb-6">
         <h2 className="text-lg font-semibold text-surface-800 mb-4">👤 {t("ข้อมูลส่วนตัว", "Personal Information")}</h2>
         
+        {/* Profile Image & Basic Info Header */}
+        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-surface-100">
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="" className="w-16 h-16 rounded-full object-cover shadow-md ring-2 ring-brand-100 p-0.5" />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-brand-500 text-white flex items-center justify-center text-2xl font-bold">
+              {(displayName || user?.name || "ส").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <h2 className="font-semibold text-surface-800 text-lg">{displayName || user?.name || t("สมาชิก", "Member")}</h2>
+            <p className="text-sm text-surface-500">{user?.email}</p>
+          </div>
+        </div>
+
+        {/* Land Area and Common Fee Information */}
+        {(user?.area !== undefined || user?.maintenanceFee !== undefined) && (
+          <div className="grid grid-cols-2 gap-4 bg-surface-50 p-4 rounded-xl border border-surface-150 mb-6 text-sm">
+            <div>
+              <span className="block text-xs text-surface-500 font-medium mb-0.5">{t("ขนาดพื้นที่ (ตารางวา)", "Land Area (Sq. Wah)")}</span>
+              <span className="font-semibold text-surface-800 text-base">
+                {user?.area !== null && user?.area !== undefined ? `${user.area.toLocaleString()} ตร.ว.` : "-"}
+              </span>
+            </div>
+            <div>
+              <span className="block text-xs text-surface-500 font-medium mb-0.5">{t("ค่าส่วนกลางประจำปี/เดือน", "Maintenance Fee")}</span>
+              <span className="font-semibold text-surface-800 text-base text-brand-600">
+                {user?.maintenanceFee !== null && user?.maintenanceFee !== undefined ? `${user.maintenanceFee.toLocaleString()} ฿` : "-"}
+              </span>
+            </div>
+          </div>
+        )}
+
         {infoMsg && <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm">{infoMsg}</div>}
         {infoError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{infoError}</div>}
         
