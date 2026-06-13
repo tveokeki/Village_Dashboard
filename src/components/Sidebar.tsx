@@ -15,10 +15,10 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { icon: "🏠", label: { th: "แดชบอร์ด", en: "Dashboard" }, href: "/dashboard" },
+  { icon: "🔔", label: { th: "แจ้งเตือน", en: "Notifications" }, href: "/notifications" },
   { icon: "📢", label: { th: "ประกาศ", en: "Announcements" }, href: "/announcements" },
   { icon: "🎫", label: { th: "รายการปัญหา", en: "Tickets" }, href: "/tickets" },
   { icon: "📄", label: { th: "เอกสาร", en: "Documents" }, href: "/documents" },
-  { icon: "🔔", label: { th: "แจ้งเตือน", en: "Notifications" }, href: "/notifications" },
   { icon: "👤", label: { th: "โปรไฟล์", en: "Profile" }, href: "/profile" },
 ];
 
@@ -78,7 +78,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {visibleNavItems.slice(0, 4).map((item) => {
+        {visibleNavItems.slice(0, 5).map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link
@@ -91,7 +91,7 @@ export default function Sidebar() {
               }`}
             >
               <span className="text-lg">{item.icon}</span>
-              <span className="text-sm">{item.label[lang]}</span>
+              <span className="text-sm">{item.label[lang === "th" ? "th" : "en"]}</span>
             </Link>
           );
         })}
@@ -116,31 +116,13 @@ export default function Sidebar() {
                     }`}
                   >
                     <span>{item.icon}</span>
-                    <span>{item.label[lang]}</span>
+                    <span>{item.label[lang === "th" ? "th" : "en"]}</span>
                   </Link>
                 );
               })}
             </div>
           </div>
         )}
-
-        {visibleNavItems.slice(4).map((item) => {
-          const active = isActive(pathname, item.href);
-          return (
-            <Link
-              key={item.href}
-              href={uatPath(item.href)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-150 ${
-                active
-                  ? "bg-brand-50 text-brand-700 font-medium border border-brand-200"
-                  : "text-surface-600 hover:bg-surface-100 hover:text-surface-800"
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="text-sm">{item.label[lang]}</span>
-            </Link>
-          );
-        })}
 
         {showAdmin && (
           <div className={`rounded-2xl border transition-colors ${adminActive ? "bg-brand-50/60 border-brand-200" : "border-transparent"}`}>
@@ -162,13 +144,31 @@ export default function Sidebar() {
                     }`}
                   >
                     <span>{item.icon}</span>
-                    <span>{item.label[lang]}</span>
+                    <span>{item.label[lang === "th" ? "th" : "en"]}</span>
                   </Link>
                 );
               })}
             </div>
           </div>
         )}
+
+        {visibleNavItems.slice(5).map((item) => {
+          const active = isActive(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={uatPath(item.href)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-150 ${
+                active
+                  ? "bg-brand-50 text-brand-700 font-medium border border-brand-200"
+                  : "text-surface-600 hover:bg-surface-100 hover:text-surface-800"
+              }`}
+            >
+              <span className="text-lg">{item.icon}</span>
+              <span className="text-sm">{item.label[lang === "th" ? "th" : "en"]}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="border-t border-surface-200 p-3">

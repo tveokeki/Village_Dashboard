@@ -26,6 +26,7 @@ export default function TopNav() {
   const showAdmin = Boolean(!userLoading && user?.isAdmin);
   const mainItems = [
     { icon: "🏠", label: lang === "th" ? "แดชบอร์ด" : "Dashboard", href: "/dashboard" },
+    { icon: "🔔", label: lang === "th" ? "แจ้งเตือน" : "Notifications", href: "/notifications" },
     { icon: "📢", label: lang === "th" ? "ประกาศ" : "Announcements", href: "/announcements" },
     { icon: "🎫", label: lang === "th" ? "รายการปัญหา" : "Tickets", href: "/tickets" },
     { icon: "📄", label: lang === "th" ? "เอกสาร" : "Documents", href: "/documents" },
@@ -47,7 +48,6 @@ export default function TopNav() {
     { icon: "🔔", label: lang === "th" ? "จัดการแจ้งเตือน" : "Notifications", href: "/admin/notifications" },
   ];
   const bottomItems = [
-    { icon: "🔔", label: lang === "th" ? "แจ้งเตือน" : "Notifications", href: "/notifications" },
     { icon: "👤", label: lang === "th" ? "โปรไฟล์" : "Profile", href: "/profile" },
   ];
 
@@ -121,18 +121,6 @@ export default function TopNav() {
             </div>
           )}
 
-          {bottomItems.map((item) => (
-            <a
-              key={item.href}
-              href={uatPath(item.href)}
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-600 hover:bg-surface-100 hover:text-surface-800 transition-colors"
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="text-sm">{item.label}</span>
-            </a>
-          ))}
-
           {showAdmin && (
             <div className="rounded-2xl border border-surface-100 bg-surface-50/70 py-1">
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-700 font-medium">
@@ -154,6 +142,18 @@ export default function TopNav() {
               </div>
             </div>
           )}
+
+          {bottomItems.map((item) => (
+            <a
+              key={item.href}
+              href={uatPath(item.href)}
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-600 hover:bg-surface-100 hover:text-surface-800 transition-colors"
+            >
+              <span className="text-lg">{item.icon}</span>
+              <span className="text-sm">{item.label}</span>
+            </a>
+          ))}
 
           <div className="pt-4 border-t border-surface-200">
             <button
