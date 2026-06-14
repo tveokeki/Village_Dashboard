@@ -1,8 +1,8 @@
 import { query } from "@/lib/db";
 
-export type AppRole = "admin" | "accountant" | "manager" | "resident";
+export type AppRole = "admin" | "accountant" | "manager" | "resident" | "president" | "vice_president";
 
-const VALID_ROLES = new Set<AppRole>(["admin", "accountant", "manager", "resident"]);
+const VALID_ROLES = new Set<AppRole>(["admin", "accountant", "manager", "resident", "president", "vice_president"]);
 
 export function normalizeRole(role?: string | null): AppRole | null {
   if (!role) return null;
@@ -29,5 +29,11 @@ export function mergeLegacyRoles(roles: AppRole[], legacyRole?: string | null, i
   const normalizedLegacy = normalizeRole(legacyRole);
   if (normalizedLegacy) roleSet.add(normalizedLegacy);
   if (isAdmin) roleSet.add("admin");
+  
+  // If user has other roles besides resident, revoke the resident role
+  if (roleSet.size > 1 && roleSet.has("resident")) {
+    roleSet.delete("resident");
+  }
+  
   return Array.from(roleSet);
 }
