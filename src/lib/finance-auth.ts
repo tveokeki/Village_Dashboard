@@ -35,11 +35,15 @@ export async function requireAnyRole(allowedRoles: FinanceRole[]): Promise<Finan
 }
 
 export async function requireFinanceAccess() {
-  return requireAnyRole(["admin", "accountant", "manager"]);
+  return requireAnyRole(["admin", "accountant", "manager", "president", "vice_president"]);
 }
 
 export async function requireExpenseRequesterRole() {
   return requireAnyRole(["accountant", "manager"]);
+}
+
+export async function requirePresidentOrVicePresidentRole() {
+  return requireAnyRole(["president", "vice_president", "admin"]);
 }
 
 export function assertNotSelfApproval(requestedBy: string, approverId: string) {

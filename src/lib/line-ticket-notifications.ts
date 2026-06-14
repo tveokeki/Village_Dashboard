@@ -27,6 +27,8 @@ type GenericTicketUpdateOptions = {
   progressNote?: string;
   oldStatus?: string;
   newStatus?: string;
+  skipLineUserId?: string;
+  isNewTicket?: boolean;
 };
 
 const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
@@ -108,6 +110,27 @@ function buildGenericUpdateMessage(ticket: TicketForLine, lang: string, options:
     address ? `บ้าน/ยูนิต: ${address}` : null,
     options.statusChanged ? `สถานะ: ${statusLabel(options.oldStatus, lang)} → ${statusLabel(options.newStatus, lang)}` : null,
     note ? `บันทึกความคืบหน้า: ${note}` : null,
+    `ดูรายละเอียด: ${ticketDetailUrl(ticket)}`,
+  ].filter(Boolean).join("\n");
+}
+
+function buildNewTicketMessage(ticket: TicketForLine, lang: string) {
+  const address = compactAddress(ticket);
+  if (lang === "en") {
+    return [
+      `🔔 New problem report created!`,
+      `Ticket: ${ticket.ticket_number}`,
+      `Issue: ${ticket.problem_title}`,
+      address ? `House/Unit: ${address}` : null,
+      `Details: ${ticketDetailUrl(ticket)}`,
+    ].filter(Boolean).join("\n");
+  }
+
+  return [
+    `🔔 มีรายงานปัญหาใหม่ถูกสร้างขึ้น`,
+    `Ticket: ${ticket.ticket_number}`,
+    `เรื่อง: ${ticket.problem_title}`,
+    address ? `บ้าน/ยูนิต: ${address}` : null,
     `ดูรายละเอียด: ${ticketDetailUrl(ticket)}`,
   ].filter(Boolean).join("\n");
 }
@@ -251,5 +274,164 @@ export async function notifyLineResolvedConfirmation(
       [effectiveRequestId, String(message).slice(0, 1000)],
     );
     return { attempted: true, sent: false, requestId: effectiveRequestId, reason: "line_push_exception" };
+  }
+}
+
+export async function notifyLineTicketUpdateToManagers(
+  ticket: TicketForLine,
+  options: GenericTicketUpdateOptions & { isResolved?: boolean },
+): Promise<void> {
+  const token = getLineToken();
+  if (!token) return;
+
+  try {
+    const managers = await query(
+      `SELECT email, line_id, preferred_language 
+       FROM slip_processing.web_users 
+       WHERE deleted_at IS NULL AND (role = 'manager' OR role = 'admin' OR is_admin = TRUE)`
+    );
+
+    const messageTh = options.isResolved 
+      ? buildResolvedMessage(ticket, "th") 
+      : options.isNewTicket
+        ? buildNewTicketMessage(ticket, "th")
+        : buildGenericUpdateMessage(ticket, "th", options);
+
+    const messageEn = options.isResolved 
+      ? buildResolvedMessage(ticket, "en") 
+      : options.isNewTicket
+        ? buildNewTicketMessage(ticket, "en")
+        : buildGenericUpdateMessage(ticket, "en", options);
+
+    for (const manager of managers.rows) {
+      let lineUserId = (manager.line_id || "").trim();
+      if (!lineUserId && manager.email?.endsWith("@line.oauth")) {
+        lineUserId = manager.email.split("@")[0].trim();
+      }
+
+      if (!lineUserId) continue;
+
+      if (lineUserId === (options.skipLineUserId || "").trim()) {
+        continue;
+      }
+
+      const lang = manager.preferred_language === "en" ? "en" : "th";
+      const text = lang === "en" ? messageEn : messageTh;
+
+      await pushLineText(lineUserId, token, text);
+    }
+  } catch (err) {
+    console.error("Failed to notify managers:", err);
+  }
+}
+
+export async function notifyLineExpenseUpdate(requestId: string, action: string, actorUserId: string): Promise<void> {
+  const token = getLineToken();
+  if (!token) return;
+
+  try {
+    // 1. Fetch request details
+    const requestRes = await query(
+      `SELECT er.*, 
+              COALESCE(req.display_name, req.email) AS requester_name,
+              COALESCE(act.display_name, act.email) AS actor_name
+       FROM slip_processing.expense_requests er
+       LEFT JOIN slip_processing.web_users req ON req.id = er.requested_by
+       LEFT JOIN slip_processing.web_users act ON act.id = $2
+       WHERE er.id = $1`,
+      [requestId, actorUserId]
+    );
+    const r = requestRes.rows[0];
+    if (!r) return;
+
+    // 2. Fetch users with roles manager, accountant, president, vice_president, admin who have line_id
+    const usersRes = await query(
+      `SELECT DISTINCT wu.id, wu.display_name, wu.line_id, wu.preferred_language
+       FROM slip_processing.web_users wu
+       LEFT JOIN slip_processing.user_roles ur ON ur.user_id = wu.id AND ur.deleted_at IS NULL
+       LEFT JOIN slip_processing.roles r ON r.id = ur.role_id AND r.deleted_at IS NULL
+       WHERE wu.deleted_at IS NULL 
+         AND (
+           r.role_code IN ('manager', 'accountant', 'president', 'vice_president', 'admin')
+           OR wu.role IN ('manager', 'accountant', 'admin')
+           OR wu.is_admin = TRUE
+         )
+         AND wu.line_id IS NOT NULL AND wu.line_id <> ''`
+    );
+
+    // 3. Build the messages
+    const amountStr = Number(r.total_requested || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 });
+    const approvedStr = Number(r.total_approved || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 });
+    const disbursedStr = Number(r.disbursed_amount || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 });
+
+    let messageTh = "";
+    let messageEn = "";
+    let quickReply: any = null;
+
+    if (action === "pending" || action === "submitted" || action === "created") {
+      messageTh = `🔔 คำขอเบิกค่าใช้จ่ายใหม่: ${r.request_number}\nเรื่อง: ${r.title}\nผู้ขอเบิก: ${r.requester_name}\nจำนวนเงิน: ${amountStr} บาท\nสถานะ: รออนุมัติ\n\n(สิทธิ์ประธาน/รองประธาน สามารถพิมพ์ 'อนุมัติ ${r.request_number}' หรือ 'ไม่อนุมัติ ${r.request_number}' เพื่ออนุมัติ/ปฏิเสธได้ทันทีค่ะ)`;
+      messageEn = `🔔 New Expense Request: ${r.request_number}\nTitle: ${r.title}\nRequester: ${r.requester_name}\nAmount: ${amountStr} THB\nStatus: Pending Approval\n\n(Presidents/Vice Presidents can reply 'Approve ${r.request_number}' or 'Reject ${r.request_number}' to authorize)`;
+
+      quickReply = {
+        items: [
+          {
+            type: "action",
+            action: {
+              type: "message",
+              label: "✅ อนุมัติ",
+              text: `อนุมัติ ${r.request_number}`
+            }
+          },
+          {
+            type: "action",
+            action: {
+              type: "message",
+              label: "❌ ไม่อนุมัติ",
+              text: `ไม่อนุมัติ ${r.request_number}`
+            }
+          }
+        ]
+      };
+    } 
+    else if (action === "approved") {
+      messageTh = `✅ อนุมัติใบเบิกแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nยอดเงินอนุมัติ: ${approvedStr} บาท\nผู้อนุมัติ: ${r.actor_name}\nสถานะ: รอฝ่ายบัญชีโอนเงินให้ผู้จัดการ`;
+      messageEn = `✅ Expense Approved: ${r.request_number}\nTitle: ${r.title}\nApproved Amount: ${approvedStr} THB\nApproved By: ${r.actor_name}\nStatus: Waiting for accountant disbursement`;
+    } 
+    else if (action === "rejected") {
+      messageTh = `❌ ปฏิเสธใบเบิกแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nผู้ดำเนินการ: ${r.actor_name}\nสถานะ: ปฏิเสธการเบิกเงิน`;
+      messageEn = `❌ Expense Rejected: ${r.request_number}\nTitle: ${r.title}\nRejected By: ${r.actor_name}\nStatus: Rejected`;
+    } 
+    else if (action === "disbursed") {
+      const channelLabel = r.disbursal_channel === "bank_transfer" ? "โอนเงินผ่านธนาคาร" : r.disbursal_channel === "cash" ? "เงินสด" : "ช่องทางอื่น";
+      const channelLabelEn = r.disbursal_channel === "bank_transfer" ? "Bank Transfer" : r.disbursal_channel === "cash" ? "Cash" : "Other";
+      messageTh = `💵 โอนเงินให้ผู้จัดการแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nยอดโอน: ${disbursedStr} บาท\nช่องทาง: ${channelLabel}\nสถานะ: ผู้จัดการอยู่ระหว่างจ่ายเงินและรายงานผลจริง`;
+      messageEn = `💵 Disbursed to Manager: ${r.request_number}\nTitle: ${r.title}\nDisbursed Amount: ${disbursedStr} THB\nChannel: ${channelLabelEn}\nStatus: Spent report pending from manager`;
+    } 
+    else if (action === "spent") {
+      messageTh = `📋 ผู้จัดการจ่ายเงินครบแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nผู้รายงาน: ${r.actor_name}\nสถานะ: รอฝ่ายบัญชีตรวจสอบการใช้จ่ายและปิดยอดบัญชี`;
+      messageEn = `📋 Spent Completed: ${r.request_number}\nTitle: ${r.title}\nReported By: ${r.actor_name}\nStatus: Waiting for accountant audit and close`;
+    } 
+    else if (action === "closed") {
+      messageTh = `🔒 ปิดยอดบัญชีเรียบร้อย: ${r.request_number}\nเรื่อง: ${r.title}\nผู้ตรวจสอบ: ${r.actor_name}\nสถานะ: ตรวจสอบงบผ่านเรียบร้อยและปิดยอดบัญชีการเบิกจ่ายค่ะ`;
+      messageEn = `🔒 Expense Closed: ${r.request_number}\nTitle: ${r.title}\nAudited By: ${r.actor_name}\nStatus: Audited & closed successfully`;
+    } 
+    else if (action === "cancelled") {
+      messageTh = `🚫 ยกเลิกคำขอเบิกแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nผู้ดำเนินการ: ${r.actor_name}\nสถานะ: ยกเลิก/Cancelled`;
+      messageEn = `🚫 Expense Cancelled: ${r.request_number}\nTitle: ${r.title}\nCancelled By: ${r.actor_name}\nStatus: Cancelled`;
+    }
+
+    if (!messageTh) return;
+
+    for (const u of usersRes.rows) {
+      const lineUserId = (u.line_id || "").trim();
+      if (!lineUserId) continue;
+
+      const lang = u.preferred_language === "en" ? "en" : "th";
+      const text = lang === "en" ? messageEn : messageTh;
+
+      await pushLineText(lineUserId, token, text, quickReply);
+    }
+  } catch (err) {
+    console.error("Failed to deliver expense LINE notification:", err);
   }
 }

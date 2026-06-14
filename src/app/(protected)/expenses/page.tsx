@@ -7,12 +7,21 @@ import FinanceStatusBadge from "@/components/finance/FinanceStatusBadge";
 import KpiCard from "@/components/finance/KpiCard";
 import { formatDate, formatMoney, numberValue, uatPath } from "@/components/finance/finance-format";
 import { useLanguage } from "@/components/LanguageContext";
+import { useCurrentUser } from "@/lib/current-user-client";
+import * as XLSX from "xlsx-js-style";
+import { Download } from "lucide-react";
 
-type ExpenseItemInput = { description: string; category: string; amount: string; payment_source: string; spent_at: string };
+type ExpenseItemInput = { id?: string; description: string; category: string; amount: string; payment_source: string; spent_at: string; receipt_file_path?: string };
 
 export default function ExpensesPage() {
   const { lang } = useLanguage();
   const t = (th: string, en: string) => (lang === "th" ? th : en);
+  const { user } = useCurrentUser();
+  const isAccountant = user?.roles?.includes("accountant") ?? false;
+  const isAdmin = user?.roles?.includes("admin") ?? user?.isAdmin ?? false;
+  const isPresident = user?.roles?.includes("president") || user?.roles?.includes("vice_president") || false;
+  const isManager = user?.roles?.includes("manager") ?? false;
+
   const [tab, setTab] = useState("requests");
   const [requests, setRequests] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
@@ -22,8 +31,8 @@ export default function ExpensesPage() {
   const [q, setQ] = useState("");
   const [openForm, setOpenForm] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
-  const [approvalAction, setApprovalAction] = useState<"approved" | "rejected" | "paid" | "cancelled" | null>(null);
-  const [items, setItems] = useState<ExpenseItemInput[]>([{ description: "", category: "", amount: "", payment_source: "bank_transfer", spent_at: "" }]);
+  const [approvalAction, setApprovalAction] = useState<"approved" | "rejected" | "disbursed" | "spent" | "closed" | "cancelled" | null>(null);
+  const [items, setItems] = useState<ExpenseItemInput[]>([{ description: "", category: "", amount: "", payment_source: "bank_transfer", spent_at: "", receipt_file_path: "" }]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -31,44 +40,193 @@ export default function ExpensesPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState("");
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [paymentReceipt, setPaymentReceipt] = useState("");
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+
+  useEffect(() => {
+    setPaymentReceipt("");
+  }, [selected, approvalAction]);
+
+  async function handleUploadPaymentReceipt(file: File) {
+    if (!file) return;
+    setUploadingReceipt(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "documents");
+      const res = await fetch(uatPath("/api/admin/upload"), {
+        method: "POST",
+        body: fd
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setPaymentReceipt(data.file_path);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUploadingReceipt(false);
+    }
+  }
+
+  async function handleUploadReceipt(index: number, file: File) {
+    if (!file) return;
+    setUploadingIndex(index);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "documents");
+      const res = await fetch(uatPath("/api/admin/upload"), {
+        method: "POST",
+        body: fd
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      updateItem(index, "receipt_file_path", data.file_path);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUploadingIndex(null);
+    }
+  }
+
+  const exportToExcel = () => {
+    const workbook = XLSX.utils.book_new();
+
+    // Sheet 1: Expense Requests
+    const headers = [
+      t("เลขที่เอกสาร", "Doc No"),
+      t("หัวข้อ", "Title"),
+      t("ผู้เสนอเบิก", "Requester"),
+      t("ยอดเงินรวม", "Total Amount"),
+      t("สถานะ", "Status"),
+      t("วันที่ขอเบิก", "Requested Date")
+    ];
+
+    const rowsData = requests.map((r) => [
+      r.request_number || r.id,
+      r.title || "",
+      r.requester_name || "",
+      numberValue(r.total_approved || r.total_requested),
+      t(
+        r.status === "closed" ? "ปิดยอดแล้ว" : r.status === "spent" ? "จ่ายครบแล้ว" : r.status === "disbursed" ? "โอนเงินแล้ว" : r.status === "approved" ? "อนุมัติแล้ว" : r.status === "rejected" ? "ปฏิเสธ" : r.status === "cancelled" ? "ยกเลิก" : "รอดำเนินการ",
+        r.status === "closed" ? "Closed" : r.status === "spent" ? "Spent" : r.status === "disbursed" ? "Disbursed" : r.status === "approved" ? "Approved" : r.status === "rejected" ? "Rejected" : r.status === "cancelled" ? "Cancelled" : "Pending"
+      ),
+      formatDate(r.created_at, lang)
+    ]);
+
+    const worksheet1 = XLSX.utils.aoa_to_sheet([headers, ...rowsData]);
+    const range1 = XLSX.utils.decode_range(worksheet1["!ref"] || "A1:A1");
+    for (let r = 1; r <= range1.e.r; r++) {
+      const addr = XLSX.utils.encode_cell({ r, c: 3 });
+      if (worksheet1[addr]) {
+        worksheet1[addr].t = "n";
+        worksheet1[addr].z = "#,##0.00";
+      }
+    }
+    worksheet1["!cols"] = [{ wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 15 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet1, "Expense Requests");
+
+    // Sheet 2: Petty Cash Ledger
+    if (ledger.length > 0) {
+      const ledgerHeaders = [
+        t("วันที่", "Date"),
+        t("ประเภท", "Type"),
+        t("รายละเอียด", "Description"),
+        t("จำนวนเงิน", "Amount"),
+        t("คงเหลือ", "Balance")
+      ];
+      const ledgerRows = ledger.map((l) => [
+        formatDate(l.created_at, lang),
+        l.transaction_type === "receive_surplus" ? t("เงินคงเหลือ", "Leftover Surplus") : t("จ่ายเงินสด", "Cash Expense"),
+        l.description || "",
+        numberValue(l.amount),
+        numberValue(l.balance_after)
+      ]);
+      const worksheet2 = XLSX.utils.aoa_to_sheet([ledgerHeaders, ...ledgerRows]);
+      const range2 = XLSX.utils.decode_range(worksheet2["!ref"] || "A1:A1");
+      for (let r = 1; r <= range2.e.r; r++) {
+        [3, 4].forEach((c) => {
+          const addr = XLSX.utils.encode_cell({ r, c });
+          if (worksheet2[addr]) {
+            worksheet2[addr].t = "n";
+            worksheet2[addr].z = "#,##0.00";
+          }
+        });
+      }
+      worksheet2["!cols"] = [{ wch: 15 }, { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 }];
+      XLSX.utils.book_append_sheet(workbook, worksheet2, "Petty Cash Ledger");
+    }
+
+    XLSX.writeFile(workbook, `ExpensesReport_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   async function loadExpenses() {
-    setLoading(true); setMessage("");
-    const params = new URLSearchParams();
-    if (status !== "all") params.set("status", status);
-    if (q.trim()) params.set("q", q.trim());
+    setLoading(true);
     try {
-      const res = await fetch(uatPath(`/api/finance/expenses?${params.toString()}`), { cache: "no-store" });
+      const params = new URLSearchParams();
+      if (status !== "all") params.set("status", status);
+      if (q.trim()) params.set("q", q.trim());
+      const res = await fetch(uatPath(`/api/finance/expenses?${params.toString()}`));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load expenses");
-      setRequests(data.requests || []); setStats(data.stats || []); setBalances(data.petty_cash_balances || []); setLedger(data.petty_cash_ledger || []);
-    } catch (err: any) { setMessage(err.message); } finally { setLoading(false); }
-  }
-  useEffect(() => { const timer = window.setTimeout(loadExpenses, 250); return () => window.clearTimeout(timer); }, [status, q]);
-
-  const summary = useMemo(() => ({
-    pending: stats.find((s) => s.status === "pending")?.count || 0,
-    approved: stats.find((s) => s.status === "approved")?.total_approved || 0,
-    paid: stats.find((s) => s.status === "paid")?.total_approved || 0,
-    petty: balances.reduce((sum, b) => sum + numberValue(b.current_balance), 0),
-  }), [stats, balances]);
-
-  function updateItem(index: number, key: keyof ExpenseItemInput, value: string) {
-    setItems((prev) => prev.map((it, i) => i === index ? { ...it, [key]: value } : it));
+      if (res.ok) {
+        setRequests(data.requests || []);
+        setStats(data.stats || []);
+        setBalances(data.petty_cash_balances || []);
+        setLedger(data.petty_cash_ledger || []);
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function handleSubmitExpense(e: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    loadExpenses();
+  }, [status, q]);
+
+  const kpis = useMemo(() => {
+    return {
+      pending: stats.find((s) => s.status === "pending")?.count || 0,
+      approved: stats.find((s) => s.status === "approved" || s.status === "disbursed")?.total_approved || 0,
+      closed: stats.find((s) => s.status === "closed")?.total_approved || 0,
+    };
+  }, [stats]);
+
+  const updateItem = (index: number, key: keyof ExpenseItemInput, value: string) => {
+    setItems((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [key]: value };
+      return copy;
+    });
+  };
+
+  const removeItem = (index: number) => {
+    if (items.length <= 1) return;
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  async function submitForm(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true); setMessage(""); setSuccess("");
     try {
-      const payload = { 
-        title, 
-        description, 
-        items: items.filter((it) => it.description && it.category && it.amount).map((it) => ({ ...it, amount: String(it.amount).replace(/,/g, "") }))
+      const payload = {
+        title,
+        description,
+        items: items.map((it) => ({
+          id: it.id || undefined,
+          description: it.description,
+          category: it.category,
+          amount: parseFloat(it.amount.replace(/,/g, "")),
+          payment_source: it.payment_source,
+          spent_at: it.spent_at || null,
+          receipt_file_path: it.receipt_file_path || null
+        }))
       };
-      
+
       const url = editingId 
-        ? `/api/finance/expenses/${editingId}`
+        ? `/api/finance/expenses/${editingId}` 
         : "/api/finance/expenses";
       const method = editingId ? "PATCH" : "POST";
 
@@ -117,7 +275,8 @@ export default function ExpensesPage() {
       category: it.category,
       amount: it.amount_requested ? parseFloat(String(it.amount_requested)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "",
       payment_source: it.payment_source,
-      spent_at: it.spent_at || ""
+      spent_at: it.spent_at || "",
+      receipt_file_path: it.receipt_file_path || ""
     })));
     setOpenForm(true);
   };
@@ -126,7 +285,7 @@ export default function ExpensesPage() {
     setEditingId(null);
     setTitle("");
     setDescription("");
-    setItems([{ description: "", category: "", amount: "", payment_source: "bank_transfer", spent_at: "" }]);
+    setItems([{ description: "", category: "", amount: "", payment_source: "bank_transfer", spent_at: "", receipt_file_path: "" }]);
     setOpenForm((v) => !v);
   };
 
@@ -134,45 +293,477 @@ export default function ExpensesPage() {
     e.preventDefault();
     if (!selected || !approvalAction) return;
     if (approvalAction === "rejected" && !confirm(t("ยืนยันไม่อนุมัติคำขอนี้?", "Confirm reject this request?"))) return;
+    
     const f = new FormData(e.currentTarget);
     setSaving(true); setMessage(""); setSuccess("");
     try {
-      const payload: any = { action: approvalAction, total_approved: String(f.get("total_approved") || "").replace(/,/g, ""), notes: f.get("notes") };
-      const res = await fetch(uatPath(`/api/finance/expenses/${selected.id}/approval`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      let payload: any = { action: approvalAction };
+
+      if (approvalAction === "approved") {
+        payload.total_approved = String(f.get("total_approved") || "").replace(/,/g, "");
+        payload.notes = f.get("notes");
+      } 
+      else if (approvalAction === "disbursed") {
+        payload.disbursed_amount = String(f.get("disbursed_amount") || "").replace(/,/g, "");
+        payload.disbursal_channel = f.get("disbursal_channel");
+        payload.disbursal_receipt_path = paymentReceipt;
+        payload.notes = f.get("notes");
+      }
+      else if (approvalAction === "spent") {
+        // Collect actually spent values from the inputs
+        payload.items = selected.items.map((it: any) => {
+          const actualVal = String(f.get(`actual_spent_${it.id}`) || "").replace(/,/g, "");
+          const spentAtVal = f.get(`spent_at_${it.id}`);
+          const receiptVal = f.get(`receipt_${it.id}`) || it.receipt_file_path;
+          return {
+            id: it.id,
+            amount_approved: actualVal || it.amount_requested,
+            spent_at: spentAtVal || null,
+            receipt_file_path: receiptVal || null
+          };
+        });
+        payload.notes = f.get("notes");
+      }
+      else if (approvalAction === "closed" || approvalAction === "cancelled") {
+        payload.notes = f.get("notes");
+      }
+
+      const res = await fetch(uatPath(`/api/finance/expenses/${selected.id}/approval`), { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify(payload) 
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Approval failed");
-      setSuccess(t("บันทึกสถานะรายจ่ายเรียบร้อย", "Expense status saved"));
-      setApprovalAction(null); await loadExpenses();
+      if (!res.ok) throw new Error(data.error || "Action failed");
+      
+      setSuccess(t("บันทึกสถานะการเบิกจ่ายเรียบร้อยแล้วค่ะ", "Expense flow state saved successfully"));
+      setApprovalAction(null); 
+      setSelected(data.request || null);
+      await loadExpenses();
     } catch (err: any) { setMessage(err.message); } finally { setSaving(false); }
   }
 
   async function submitPettySpend(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault(); if (!selected) return;
+    e.preventDefault();
+    if (!selected) return;
     const f = new FormData(e.currentTarget);
     setSaving(true); setMessage(""); setSuccess("");
     try {
-      const payload = { amount: String(f.get("amount") || "").replace(/,/g, ""), description: f.get("description"), transaction_date: f.get("transaction_date") };
-      const res = await fetch(uatPath(`/api/finance/expenses/${selected.id}/petty-cash-spend`), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const payload = {
+        amount: String(f.get("amount") || "").replace(/,/g, ""),
+        description: f.get("description"),
+        transaction_date: f.get("transaction_date") || null
+      };
+      const res = await fetch(uatPath(`/api/finance/expenses/${selected.id}/petty-cash-spend`), { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify(payload) 
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Petty cash spend failed");
-      setSuccess(t("บันทึกใช้เงินสดย่อยเรียบร้อย", "Petty cash spend recorded"));
-      e.currentTarget.reset(); await loadExpenses();
+      if (!res.ok) throw new Error(data.error || "Post failed");
+      setSuccess(t("บันทึกการใช้เงินสดย่อยเรียบร้อยแล้วค่ะ", "Petty cash spend recorded"));
+      e.currentTarget.reset();
+      await loadExpenses();
     } catch (err: any) { setMessage(err.message); } finally { setSaving(false); }
   }
 
-  return <div className="py-6 min-w-0">
-    <FinancePageHeader title={t("รายจ่ายและคำขอเบิก", "Expenses")} description={t("สร้างคำขอเบิก อนุมัติรายจ่าย และติดตามเงินสดย่อย", "Create requests, approve expenses, and track petty cash")}>
-      <button onClick={handleNewRequestClick} className="btn-primary w-full sm:w-auto">+ {t("ขอเบิกค่าใช้จ่าย", "New expense request")}</button>
-    </FinancePageHeader>
-    {message && <div className="mb-4 rounded-xl border px-4 py-3 text-sm bg-red-50 border-red-200 text-red-700">{message}</div>}
-    {success && <div className="mb-4 rounded-xl border px-4 py-3 text-sm bg-brand-50 border-brand-100 text-brand-700">{success}</div>}
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"><KpiCard label={t("รออนุมัติ", "Pending")} value={summary.pending} tone="amber" /><KpiCard label={t("ยอดอนุมัติ", "Approved")} value={formatMoney(summary.approved, lang)} tone="emerald" /><KpiCard label={t("จ่ายแล้ว", "Paid")} value={formatMoney(summary.paid, lang)} tone="blue" /><KpiCard label={t("เงินสดย่อย", "Petty cash")} value={formatMoney(summary.petty, lang)} /></div>
-    <FinanceTabs tabs={[{ key: "requests", label: t("คำขอเบิก", "Requests") }, { key: "petty", label: t("เงินสดย่อย", "Petty Cash") }, { key: "ledger", label: t("ประวัติ", "Ledger") }]} active={tab} onChange={setTab} />
+  return (
+    <div className="container mx-auto px-4 pb-24 pt-4 text-surface-900">
+      <FinancePageHeader title={t("💸 บริหารงานรายจ่ายและใบตั้งเบิก", "💸 Expense & Payment Requests")} description={""} />
+      
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <KpiCard label={t("⏳ รออนุมัติ (รายการ)", "Pending Requests")} value={kpis.pending} hint={t("ใบเบิกที่ประธานต้องอนุมัติ", "Requests awaiting approval")} tone="amber" />
+        <KpiCard label={t("🟢 เบิกจ่ายแล้ว (บาท)", "Approved & Disbursed")} value={formatMoney(kpis.approved, lang)} hint={t("ยอดเงินสัญญารวม", "Approved totals")} tone="emerald" />
+        <KpiCard label={t("🔒 ปิดยอดแล้ว (บาท)", "Closed/Audited Totals")} value={formatMoney(kpis.closed, lang)} hint={t("ตรวจสอบเสร็จสมบูรณ์", "Verified spent")} tone="brand" />
+      </div>
 
-    {openForm && <div className="card mb-6"><div className="flex justify-between mb-4"><h2 className="font-semibold text-surface-900">{editingId ? t("แก้ไขคำขอเบิก", "Edit expense request") : t("สร้างคำขอเบิก", "Create expense request")}</h2><button onClick={() => setOpenForm(false)} className="text-surface-500">✕</button></div><form onSubmit={handleSubmitExpense} className="space-y-4"><div className="grid md:grid-cols-2 gap-3"><input name="title" value={title} onChange={(e) => setTitle(e.target.value)} className="input-field" placeholder={t("หัวข้อ", "Title")} required /><input name="description" value={description} onChange={(e) => setDescription(e.target.value)} className="input-field" placeholder={t("รายละเอียด", "Description")} /></div>{items.map((it, index) => <div key={index} className="rounded-xl border border-surface-200 p-3 grid md:grid-cols-5 gap-3"><input className="input-field md:col-span-2" placeholder={t("รายการ", "Item description")} value={it.description} onChange={(e) => updateItem(index, "description", e.target.value)} required /><input className="input-field" placeholder={t("หมวดหมู่", "Category")} value={it.category} onChange={(e) => updateItem(index, "category", e.target.value)} required /><input className="input-field" placeholder={t("จำนวนเงิน", "Amount")} value={it.amount} onChange={(e) => updateItem(index, "amount", e.target.value)} required onFocus={(e) => { updateItem(index, "amount", e.target.value.replace(/,/g, "")); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { updateItem(index, "amount", num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })); } }} /><select className="input-field" value={it.payment_source} onChange={(e) => updateItem(index, "payment_source", e.target.value)}><option value="bank_transfer">{t("โอนธนาคาร", "Bank transfer")}</option><option value="petty_cash">{t("เงินสดย่อย", "Petty cash")}</option><option value="cash">{t("เงินสด", "Cash")}</option></select></div>)}<button type="button" onClick={() => setItems([...items, { description: "", category: "", amount: "", payment_source: "bank_transfer", spent_at: "" }])} className="px-4 py-2 rounded-xl border border-surface-200 text-sm">+ {t("เพิ่มรายการ", "Add item")}</button><button disabled={saving} className="btn-primary w-full">{saving ? t("กำลังบันทึก...", "Saving...") : (editingId ? t("บันทึกการแก้ไข", "Save changes") : t("ส่งคำขอ", "Submit request"))}</button></form></div>}
+      <FinanceTabs active={tab} onChange={setTab} tabs={[
+        { key: "requests", label: t("📊 ใบตั้งเบิก", "Expense Requests") },
+        { key: "petty", label: t("🪙 เงินสดย่อยผู้จัดการ", "Petty Cash") },
+        { key: "ledger", label: t("📜 ประวัติเงินสดย่อย", "Petty Cash Ledger") }
+      ]} />
 
-    {tab === "requests" && <><div className="card mb-4 grid md:grid-cols-3 gap-3"><input className="input-field md:col-span-2" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ค้นหาเลขที่คำขอ/หัวข้อ", "Search request number/title")} /><select className="input-field" value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">{t("ทุกสถานะ", "All statuses")}</option><option value="pending">{t("รออนุมัติ", "Pending")}</option><option value="approved">{t("อนุมัติแล้ว", "Approved")}</option><option value="paid">{t("จ่ายแล้ว", "Paid")}</option><option value="rejected">{t("ไม่อนุมัติ", "Rejected")}</option></select></div><div className="space-y-3">{loading ? <div className="text-center py-12 text-surface-500">{t("กำลังโหลด...", "Loading...")}</div> : requests.length === 0 ? <div className="card text-center text-surface-500">{t("ยังไม่มีคำขอเบิก", "No expense requests yet")}</div> : requests.map((r) => <div key={r.id} className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4"><div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3"><button onClick={() => setSelected(selected?.id === r.id ? null : r)} className="text-left min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-surface-900">{r.request_number}</span><FinanceStatusBadge status={r.status} lang={lang} /></div><div className="mt-1 text-sm text-surface-700 break-words">{r.title}</div><div className="text-xs text-surface-500">{formatDate(r.requested_at, lang)} · {r.requester_name || r.requester_email || "-"}</div></button><div className="grid grid-cols-2 gap-3 lg:text-right"><div><div className="text-xs text-surface-500">{t("ยอดขอ", "Requested")}</div><div className="font-semibold">{formatMoney(r.total_requested, lang)}</div></div><div><div className="text-xs text-surface-500">{t("ยอดอนุมัติ", "Approved")}</div><div className="font-semibold">{formatMoney(r.total_approved, lang)}</div></div></div></div>{selected?.id === r.id && <div className="mt-4 border-t border-surface-100 pt-4"><div className="grid lg:grid-cols-2 gap-4"><div><h3 className="font-medium mb-2">{t("รายการย่อย", "Items")}</h3><div className="space-y-2">{(r.items || []).map((it: any) => <div key={it.id} className="rounded-xl bg-surface-50 p-3 text-sm"><div className="font-medium break-words">{it.description}</div><div className="text-surface-500">{it.category} · {formatMoney(it.amount_requested, lang)}</div></div>)}</div></div><div><h3 className="font-medium mb-2">{t("ประวัติอนุมัติ", "Approval timeline")}</h3><div className="space-y-2">{(r.approval_logs || []).map((log: any) => <div key={log.id} className="text-sm border-l-2 border-brand-200 pl-3"><div className="font-medium">{log.action}</div><div className="text-surface-500">{formatDate(log.created_at, lang)} {log.notes ? `· ${log.notes}` : ""}</div></div>)}</div></div></div><div className="mt-4 flex flex-wrap gap-2">{r.status === "pending" && <><button onClick={() => setApprovalAction("approved")} className="px-4 py-2 rounded-xl bg-brand-500 text-white text-sm">{t("อนุมัติ", "Approve")}</button><button onClick={() => setApprovalAction("rejected")} className="px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm">{t("ไม่อนุมัติ", "Reject")}</button><button onClick={() => handleEditClick(r)} className="px-4 py-2 rounded-xl border border-surface-200 text-surface-700 text-sm font-semibold hover:bg-surface-50">{t("✏️ แก้ไข", "✏️ Edit")}</button><button onClick={() => handleDeleteExpense(r.id)} className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-100/60">{t("🗑️ ลบ", "🗑️ Delete")}</button></>}{r.status === "approved" && <><button onClick={() => setApprovalAction("paid")} className="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 text-sm">{t("จ่ายแล้ว", "Mark paid")}</button><button onClick={() => setApprovalAction(null)} className="px-4 py-2 rounded-xl bg-amber-50 text-amber-700 text-sm">{t("ใช้เงินสดย่อย", "Petty cash spend")}</button></>}</div>{approvalAction && <form onSubmit={submitApproval} className="mt-4 grid md:grid-cols-3 gap-3"><input name="total_approved" defaultValue={r.total_requested ? parseFloat(String(r.total_requested)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} className="input-field" placeholder={t("ยอดอนุมัติ", "Approved amount")} onFocus={(e) => { e.target.value = e.target.value.replace(/,/g, ""); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { e.target.value = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }} /><input name="notes" className="input-field md:col-span-2" placeholder={t("หมายเหตุ", "Notes")} /><button disabled={saving} className="btn-primary md:col-span-3">{saving ? t("กำลังบันทึก...", "Saving...") : t("ยืนยัน", "Confirm")}</button></form>} {r.status === "approved" && <form onSubmit={submitPettySpend} className="mt-4 grid md:grid-cols-3 gap-3"><input name="amount" className="input-field" placeholder={t("จำนวนเงินสดย่อย", "Petty cash amount")} onFocus={(e) => { e.target.value = e.target.value.replace(/,/g, ""); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { e.target.value = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }} /><input name="description" className="input-field" placeholder={t("รายละเอียด", "Description")} /><input name="transaction_date" type="date" className="input-field" /><button disabled={saving} className="btn-primary md:col-span-3">{t("บันทึกใช้เงินสดย่อย", "Record petty cash spend")}</button></form>}</div>}</div>)}</div></>}
-    {tab === "petty" && <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">{balances.map((b) => <div key={b.manager_user_id} className="card"><div className="text-sm text-surface-500">{b.manager_name || t("ผู้จัดการ", "Manager")}</div><div className="mt-2 text-2xl font-bold text-brand-700">{formatMoney(b.current_balance, lang)}</div><div className="text-xs text-surface-500">{t("อัปเดตล่าสุด", "Last updated")}: {formatDate(b.last_transaction_at, lang)}</div></div>)}{balances.length === 0 && <div className="card text-center text-surface-500 md:col-span-2">{t("ยังไม่มีเงินสดย่อย", "No petty cash balances")}</div>}</div>}
-    {tab === "ledger" && <div className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden"><div className="overflow-x-auto no-scrollbar"><table className="min-w-full text-sm"><thead className="bg-surface-50 text-surface-500"><tr><th className="p-3 text-left">{t("วันที่", "Date")}</th><th className="p-3 text-left">{t("ผู้จัดการ", "Manager")}</th><th className="p-3 text-left">{t("ประเภท", "Type")}</th><th className="p-3 text-right">{t("จำนวนเงิน", "Amount")}</th><th className="p-3 text-right">{t("คงเหลือ", "Balance")}</th></tr></thead><tbody>{ledger.map((l) => <tr key={l.id} className="border-t border-surface-100"><td className="p-3">{formatDate(l.transaction_date, lang)}</td><td className="p-3">{l.manager_name || "-"}</td><td className="p-3">{l.transaction_type}</td><td className="p-3 text-right">{formatMoney(l.amount, lang)}</td><td className="p-3 text-right">{formatMoney(l.balance_after, lang)}</td></tr>)}</tbody></table></div></div>}
-  </div>;
+      <div className="mt-4">
+        {message && <div className="p-3 mb-4 rounded-xl bg-red-50 text-red-700 text-sm font-medium border border-red-100">{message}</div>}
+        {success && <div className="p-3 mb-4 rounded-xl bg-emerald-50 text-emerald-700 text-sm font-medium border border-emerald-100">{success}</div>}
+
+        {tab === "requests" && (
+          <div className="grid lg:grid-cols-12 gap-6 items-start">
+            <div className={`space-y-4 lg:col-span-7 ${selected ? "lg:col-span-7" : "lg:col-span-12"}`}>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input className="input-field flex-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("🔎 ค้นหาเลขที่ใบเบิก/หัวข้อ", "Search request number/title")} />
+                <select className="input-field sm:w-48" value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="all">{t("ทุกสถานะ", "All statuses")}</option>
+                  <option value="pending">{t("รออนุมัติ", "Pending Approval")}</option>
+                  <option value="approved">{t("อนุมัติแล้ว", "Approved")}</option>
+                  <option value="disbursed">{t("โอนเงินให้ผู้จัดการแล้ว", "Disbursed")}</option>
+                  <option value="spent">{t("ผู้จัดการจ่ายครบแล้ว", "Spent")}</option>
+                  <option value="closed">{t("ปิดยอดแล้ว", "Closed")}</option>
+                  <option value="cancelled">{t("ยกเลิก", "Cancelled")}</option>
+                </select>
+                <button onClick={exportToExcel} className="p-2 border rounded-xl hover:bg-surface-50 transition-colors flex items-center justify-center gap-1.5 text-sm" title={t("ส่งออกไฟล์ Excel", "Export to Excel")}>
+                  <Download className="w-4 h-4 text-surface-600" />
+                  <span className="sm:hidden lg:inline">{t("ส่งออก Excel", "Excel")}</span>
+                </button>
+                {(isManager || isAccountant || isAdmin) && (
+                  <button onClick={handleNewRequestClick} className="btn-primary shrink-0">+ {t("สร้างใบเบิกค่าใช้จ่าย", "New request")}</button>
+                )}
+              </div>
+
+              {openForm && (
+                <form onSubmit={submitForm} className="card border border-brand-200 bg-brand-50/20 p-4 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold text-lg text-brand-800">{editingId ? t("✏️ แก้ไขใบเบิก", "✏️ Edit Request") : t("📝 สร้างใบตั้งเบิกใหม่", "📝 New Request")}</h3>
+                    <button type="button" onClick={() => setOpenForm(false)} className="text-surface-500 text-lg">✕</button>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-3">
+                    <input value={title} onChange={(e) => setTitle(e.target.value)} required className="input-field md:col-span-1" placeholder={t("หัวข้อเบิกจ่าย", "Title")} />
+                    <input value={description} onChange={(e) => setDescription(e.target.value)} className="input-field md:col-span-2" placeholder={t("คำอธิบายเพิ่มเติม", "Description")} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="font-semibold text-xs uppercase tracking-wider text-surface-400">{t("รายการตั้งเบิกย่อย", "Expense Items")}</div>
+                    {items.map((it, index) => (
+                      <div key={index} className="grid md:grid-cols-12 gap-2 p-3 bg-white rounded-xl border border-surface-200 shadow-sm relative items-center">
+                        <div className="md:col-span-4">
+                          <input required value={it.description} onChange={(e) => updateItem(index, "description", e.target.value)} className="input-field text-sm" placeholder={t("รายละเอียด", "Description")} />
+                        </div>
+                        <div className="md:col-span-3">
+                          <input required value={it.category} onChange={(e) => updateItem(index, "category", e.target.value)} className="input-field text-sm" placeholder={t("หมวดหมู่ (เช่น อุปกรณ์, ค่าแรง)", "Category")} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <input required value={it.amount} onChange={(e) => updateItem(index, "amount", e.target.value)} className="input-field text-sm text-right" placeholder={t("จำนวนเงิน", "Amount")} onFocus={(e) => { e.target.value = e.target.value.replace(/,/g, ""); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { e.target.value = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <select value={it.payment_source} onChange={(e) => updateItem(index, "payment_source", e.target.value)} className="input-field text-sm">
+                            <option value="bank_transfer">{t("โอนเงิน", "Transfer")}</option>
+                            <option value="petty_cash">{t("เงินสดย่อย", "Petty Cash")}</option>
+                            <option value="cash">{t("เงินสด", "Cash")}</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-1 flex justify-center">
+                          <button type="button" disabled={items.length <= 1} onClick={() => removeItem(index)} className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title={t("ลบรายการย่อย", "Remove item")}>✕</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                    <button type="button" onClick={() => setItems([...items, { description: "", category: "", amount: "", payment_source: "bank_transfer", spent_at: "", receipt_file_path: "" }])} className="px-4 py-2 rounded-xl border text-sm font-semibold hover:bg-surface-50 transition-colors">+ {t("เพิ่มรายการย่อย", "Add line item")}</button>
+                    <button disabled={saving} className="btn-primary flex-1">{saving ? t("กำลังบันทึก...", "Saving...") : (editingId ? t("บันทึกการแก้ไข", "Save changes") : t("ส่งคำขอเบิก", "Submit request"))}</button>
+                  </div>
+                </form>
+              )}
+
+              {loading ? (
+                <div className="text-center py-12 text-surface-400">{t("กำลังโหลดใบเบิกค่าใช้จ่าย...", "Loading expenses...")}</div>
+              ) : requests.length === 0 ? (
+                <div className="card py-12 text-center text-surface-400">{t("ไม่พบข้อมูลใบตั้งเบิก", "No expense requests found")}</div>
+              ) : (
+                <div className="space-y-2">
+                  {requests.map((r) => (
+                    <div key={r.id} onClick={() => setSelected(r)} className={`card p-4 hover:border-brand-500 cursor-pointer transition-all border ${selected?.id === r.id ? "border-brand-500 bg-brand-50/10 shadow-md" : "border-surface-200"}`}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <div className="font-semibold text-surface-900 text-base">{r.request_number} — {r.title}</div>
+                          <div className="text-xs text-surface-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                            <span>👤 {t("ผู้เสนอเบิก:", "Requester:")} {r.requester_name}</span>
+                            <span>📅 {formatDate(r.created_at, lang)}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <FinanceStatusBadge status={r.status} lang={lang} />
+                          <div className="font-bold text-base text-brand-700">{formatMoney(r.total_requested, lang)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selected && (
+              <div className="lg:col-span-5 card p-5 border border-surface-200 shadow-lg space-y-4 bg-white sticky top-4">
+                <div className="flex justify-between items-start border-b pb-3">
+                  <div>
+                    <h3 className="font-bold text-lg text-surface-900">{selected.request_number}</h3>
+                    <div className="text-sm text-surface-500">{selected.title}</div>
+                  </div>
+                  <button onClick={() => { setSelected(null); setApprovalAction(null); }} className="text-surface-400 hover:text-surface-700 text-lg">✕</button>
+                </div>
+
+                <div className="space-y-2 text-sm border-b pb-3">
+                  <div className="flex justify-between">
+                    <span className="text-surface-500">{t("ผู้ขอเบิก", "Requester")}</span>
+                    <span className="font-medium">{selected.requester_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-surface-500">{t("ยอดตั้งเบิกทั้งหมด", "Total requested")}</span>
+                    <span className="font-bold text-brand-600">{formatMoney(selected.total_requested, lang)}</span>
+                  </div>
+                  {selected.total_approved !== null && (
+                    <div className="flex justify-between">
+                      <span className="text-surface-500">{t("ยอดอนุมัติจริง", "Approved amount")}</span>
+                      <span className="font-bold text-emerald-600">{formatMoney(selected.total_approved, lang)}</span>
+                    </div>
+                  )}
+                  {selected.disbursed_amount !== null && (
+                    <div className="flex justify-between">
+                      <span className="text-surface-500">{t("จำนวนเงินโอนให้ผู้จัดการ", "Disbursed amount")}</span>
+                      <span className="font-bold text-blue-600">{formatMoney(selected.disbursed_amount, lang)}</span>
+                    </div>
+                  )}
+                  {selected.disbursal_channel && (
+                    <div className="flex justify-between">
+                      <span className="text-surface-500">{t("ช่องทางการโอน", "Disbursement channel")}</span>
+                      <span className="font-medium text-surface-800">
+                        {selected.disbursal_channel === "bank_transfer" ? t("โอนผ่านธนาคาร", "Bank Transfer") : t("เงินสด", "Cash")}
+                      </span>
+                    </div>
+                  )}
+                  {selected.approval_notes && (
+                    <div className="bg-surface-50 p-3 rounded-lg border text-xs text-surface-600 mt-2">
+                      💡 {t("หมายเหตุอนุมัติ:", "Approval notes:")} {selected.approval_notes}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="font-semibold text-sm text-surface-900">📋 {t("รายการย่อย", "Line Items")}</div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {selected.items?.map((it: any) => (
+                      <div key={it.id} className="p-3 bg-surface-50 rounded-xl border border-surface-200 text-xs">
+                        <div className="flex justify-between font-medium text-surface-900">
+                          <span>{it.description}</span>
+                          <span>{formatMoney(it.amount_requested, lang)}</span>
+                        </div>
+                        <div className="text-surface-500 mt-1 flex justify-between">
+                          <span>📁 {it.category}</span>
+                          <span>💳 {it.payment_source}</span>
+                        </div>
+                        {it.amount_approved !== null && (
+                          <div className="text-emerald-700 font-medium mt-1 flex justify-between">
+                            <span>💸 {t("จ่ายจริง:", "Spent Amount:")}</span>
+                            <span>{formatMoney(it.amount_approved, lang)}</span>
+                          </div>
+                        )}
+                        {it.receipt_file_path && (
+                          <div className="mt-1">
+                            <a href={uatPath(it.receipt_file_path)} target="_blank" rel="noreferrer" className="text-brand-600 underline font-medium">
+                              📂 {t("ดูหลักฐานการจ่าย", "View Receipt")}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-3 border-t">
+                  {/* Manager and requester can edit/delete only if pending or draft */}
+                  {(selected.status === "pending" || selected.status === "draft") && (
+                    <>
+                      <button onClick={() => handleEditClick(selected)} className="flex-1 py-2 px-3 border border-surface-200 rounded-xl text-sm font-semibold hover:bg-surface-50 transition-colors">{t("✏️ แก้ไข", "✏️ Edit")}</button>
+                      <button onClick={() => handleDeleteExpense(selected.id)} className="flex-1 py-2 px-3 bg-red-50 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors">{t("🗑️ ลบ", "🗑️ Delete")}</button>
+                    </>
+                  )}
+
+                  {/* President / Vice President can approve/reject when pending */}
+                  {selected.status === "pending" && isPresident && (
+                    <>
+                      <button onClick={() => setApprovalAction("approved")} className="flex-1 py-2.5 px-4 bg-brand-500 text-white rounded-xl text-sm font-semibold hover:bg-brand-600 transition-colors">{t("อนุมัติ", "Approve")}</button>
+                      <button onClick={() => setApprovalAction("rejected")} className="flex-1 py-2.5 px-4 bg-red-50 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors">{t("ปฏิเสธ", "Reject")}</button>
+                    </>
+                  )}
+
+                  {/* Accountant can disburse when approved */}
+                  {selected.status === "approved" && isAccountant && (
+                    <button onClick={() => setApprovalAction("disbursed")} className="w-full py-2.5 px-4 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors">💵 {t("บันทึกการโอนเงินให้ผู้จัดการ", "Disburse Funds to Manager")}</button>
+                  )}
+
+                  {/* Manager can confirm spending when disbursed */}
+                  {selected.status === "disbursed" && isManager && (
+                    <button onClick={() => setApprovalAction("spent")} className="w-full py-2.5 px-4 bg-indigo-500 text-white rounded-xl text-sm font-semibold hover:bg-indigo-600 transition-colors">📝 {t("ส่งรายงานและยืนยันการจ่ายเงินจริง", "Confirm Spending & Submit Report")}</button>
+                  )}
+
+                  {/* Accountant can close/verify spent report when spent */}
+                  {selected.status === "spent" && isAccountant && (
+                    <button onClick={() => setApprovalAction("closed")} className="w-full py-2.5 px-4 bg-purple-500 text-white rounded-xl text-sm font-semibold hover:bg-purple-600 transition-colors">🔒 {t("ตรวจสอบผ่านและปิดยอดบัญชี", "Verify & Close Spent Report")}</button>
+                  )}
+                </div>
+
+                {approvalAction && (
+                  <form onSubmit={submitApproval} className="mt-4 space-y-3 p-4 bg-surface-50 rounded-xl border border-surface-200">
+                    <div className="font-semibold text-sm text-surface-900 border-b pb-1.5 flex justify-between">
+                      <span>
+                        {approvalAction === "disbursed" 
+                          ? t("💵 บันทึกการโอนเงินให้ผู้จัดการ", "💵 Disburse Funds to Manager") 
+                          : approvalAction === "spent"
+                            ? t("📝 รายงานการจ่ายเงินจริงย่อย", "📝 Actual Spent Report")
+                            : approvalAction === "closed"
+                              ? t("🔒 บันทึกผลการตรวจสอบ/ปิดยอด", "🔒 Audit & Close")
+                              : t("📝 ยืนยันการดำเนินการ", "📝 Process Request")
+                        }
+                      </span>
+                      <button type="button" onClick={() => setApprovalAction(null)} className="text-surface-400">✕</button>
+                    </div>
+
+                    {approvalAction === "approved" && (
+                      <div className="space-y-3">
+                        <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider">{t("จำนวนเงินอนุมัติรวม", "Approved Total")}</label>
+                        <input name="total_approved" defaultValue={selected.total_requested ? parseFloat(String(selected.total_requested)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} className="input-field text-sm" placeholder={t("จำนวนเงิน", "Amount")} onFocus={(e) => { e.target.value = e.target.value.replace(/,/g, ""); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { e.target.value = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }} />
+                      </div>
+                    )}
+
+                    {approvalAction === "disbursed" && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-semibold text-surface-500 mb-1">{t("จำนวนเงินโอนจริง", "Disbursed Amount")}</label>
+                            <input name="disbursed_amount" defaultValue={selected.total_approved ? parseFloat(String(selected.total_approved)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} className="input-field text-sm" onFocus={(e) => { e.target.value = e.target.value.replace(/,/g, ""); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { e.target.value = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }} />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-surface-500 mb-1">{t("ช่องทางการโอน", "Channel")}</label>
+                            <select name="disbursal_channel" className="input-field text-sm">
+                              <option value="bank_transfer">{t("โอนผ่านธนาคาร", "Bank Transfer")}</option>
+                              <option value="cash">{t("เงินสด", "Cash")}</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-lg border border-dashed border-surface-200">
+                          <div className="flex items-center gap-2 text-xs text-surface-500">
+                            <span>📎 {t("หลักฐานการโอน:", "Receipt Proof:")}</span>
+                            {paymentReceipt ? (
+                              <a href={uatPath(paymentReceipt)} target="_blank" rel="noreferrer" className="text-brand-600 underline font-medium break-all">
+                                {paymentReceipt.split("/").pop()}
+                              </a>
+                            ) : (
+                              <span className="text-amber-600 font-medium">⚠️ {t("กรุณาอัปโหลดหลักฐาน", "Upload proof")}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {paymentReceipt && (
+                              <button type="button" onClick={() => setPaymentReceipt("")} className="text-xs text-red-500 hover:underline">{t("ลบ", "Remove")}</button>
+                            )}
+                            <label className="cursor-pointer text-xs bg-surface-100 hover:bg-surface-200 px-3 py-2 rounded-lg border font-medium">
+                              {uploadingReceipt ? t("อัปโหลด...", "Uploading...") : t("📁 อัปโหลด", "📁 Upload")}
+                              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadPaymentReceipt(file);
+                              }} />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {approvalAction === "spent" && (
+                      <div className="space-y-3">
+                        <div className="font-semibold text-xs text-surface-400 uppercase tracking-wider">{t("รายละเอียดจ่ายจริงแต่ละรายการ", "Spent Details per Item")}</div>
+                        {selected.items?.map((it: any) => (
+                          <div key={it.id} className="p-3 bg-white rounded-lg border border-surface-200 space-y-2 text-xs">
+                            <div className="font-medium text-surface-900 flex justify-between">
+                              <span>{it.description}</span>
+                              <span className="text-surface-500">(เบิก: {formatMoney(it.amount_requested, lang)})</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-xxs font-medium text-surface-400 mb-1">{t("จำนวนเงินจ่ายจริง", "Spent Amount")}</label>
+                                <input name={`actual_spent_${it.id}`} defaultValue={it.amount_requested} className="input-field text-xs text-right" />
+                              </div>
+                              <div>
+                                <label className="block text-xxs font-medium text-surface-400 mb-1">{t("วันที่ใช้จ่าย", "Spent Date")}</label>
+                                <input name={`spent_at_${it.id}`} type="date" className="input-field text-xs" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider">{t("หมายเหตุประกอบรายงาน", "Workflow Notes")}</label>
+                      <input name="notes" className="input-field text-sm" placeholder={t("ใส่หมายเหตุเพิ่มเติม...", "Enter notes...")} />
+                    </div>
+
+                    <button disabled={saving || (approvalAction === "disbursed" && !paymentReceipt)} className="btn-primary w-full text-sm py-2">
+                      {saving ? t("กำลังบันทึก...", "Saving...") : t("ยืนยันบันทึกข้อมูล", "Confirm Action")}
+                    </button>
+                  </form>
+                )}
+
+                {selected.status === "approved" && !approvalAction && (
+                  <form onSubmit={submitPettySpend} className="mt-4 grid md:grid-cols-3 gap-3 p-4 bg-amber-50/20 border border-amber-200 rounded-xl">
+                    <div className="md:col-span-3 font-semibold text-sm text-amber-800">🪙 {t("ใช้จ่ายเงินสดย่อยฉุกเฉิน", "Urgent Petty Cash Spend")}</div>
+                    <input name="amount" required className="input-field text-sm" placeholder={t("จำนวนเงิน", "Amount")} onFocus={(e) => { e.target.value = e.target.value.replace(/,/g, ""); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { e.target.value = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }} />
+                    <input name="description" required className="input-field text-sm md:col-span-2" placeholder={t("รายละเอียดเหตุฉุกเฉิน", "Emergency description")} />
+                    <input name="transaction_date" type="date" className="input-field text-sm md:col-span-3" />
+                    <button disabled={saving} className="btn-primary md:col-span-3 py-2 text-sm">{t("บันทึกเงินสดย่อยทันที", "Record urgent spend")}</button>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "petty" && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {balances.map((b) => (
+              <div key={b.manager_user_id} className="card p-5 border border-surface-200 bg-white">
+                <div className="text-sm text-surface-500 font-medium">{b.manager_name || t("ผู้จัดการ", "Manager")}</div>
+                <div className="mt-2 text-3xl font-extrabold text-brand-700">{formatMoney(b.current_balance, lang)}</div>
+                <div className="text-xs text-surface-400 mt-2">{t("อัปเดตล่าสุด:", "Last updated:")} {formatDate(b.last_transaction_at, lang)}</div>
+              </div>
+            ))}
+            {balances.length === 0 && (
+              <div className="card text-center py-12 text-surface-500 md:col-span-3">{t("ยังไม่มีเงินสดย่อยบันทึกไว้ในระบบ", "No petty cash balances found")}</div>
+            )}
+          </div>
+        )}
+
+        {tab === "ledger" && (
+          <div className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="min-w-full text-sm">
+                <thead className="bg-surface-50 text-surface-500 border-b border-surface-200">
+                  <tr>
+                    <th className="p-3 text-left font-semibold">{t("วันที่", "Date")}</th>
+                    <th className="p-3 text-left font-semibold">{t("ผู้จัดการ", "Manager")}</th>
+                    <th className="p-3 text-left font-semibold">{t("ประเภทรายการ", "Type")}</th>
+                    <th className="p-3 text-left font-semibold">{t("คำอธิบาย", "Description")}</th>
+                    <th className="p-3 text-right font-semibold">{t("จำนวนเงิน", "Amount")}</th>
+                    <th className="p-3 text-right font-semibold">{t("ยอดคงเหลือ", "Balance")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-100">
+                  {ledger.map((l) => (
+                    <tr key={l.id} className="hover:bg-surface-50/50 transition-colors">
+                      <td className="p-3">{formatDate(l.transaction_date, lang)}</td>
+                      <td className="p-3 font-medium">{l.manager_name || "-"}</td>
+                      <td className="p-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xxs font-semibold uppercase tracking-wider ${l.direction === "in" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                          {l.transaction_type}
+                        </span>
+                      </td>
+                      <td className="p-3 text-surface-600 max-w-xs truncate" title={l.description}>{l.description || "-"}</td>
+                      <td className={`p-3 text-right font-semibold ${l.direction === "in" ? "text-emerald-600" : "text-red-600"}`}>
+                        {l.direction === "in" ? "+" : "-"}{formatMoney(l.amount, lang)}
+                      </td>
+                      <td className="p-3 text-right font-bold text-surface-800">{formatMoney(l.balance_after, lang)}</td>
+                    </tr>
+                  ))}
+                  {ledger.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-surface-400">{t("ยังไม่มีประวัติเงินสดย่อย", "No petty cash history")}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

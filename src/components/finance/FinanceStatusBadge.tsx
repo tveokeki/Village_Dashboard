@@ -9,6 +9,9 @@ const statusMeta: Record<string, { th: string; en: string; className: string }> 
   cancelled: { th: "ยกเลิก", en: "Cancelled", className: "bg-surface-200 text-surface-700 border-surface-300" },
   approved: { th: "อนุมัติแล้ว", en: "Approved", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
   rejected: { th: "ไม่อนุมัติ", en: "Rejected", className: "bg-red-100 text-red-800 border-red-200" },
+  disbursed: { th: "โอนเงินแล้ว", en: "Disbursed", className: "bg-blue-100 text-blue-800 border-blue-200" },
+  spent: { th: "ใช้จ่ายแล้ว", en: "Spent", className: "bg-indigo-100 text-indigo-800 border-indigo-200" },
+  closed: { th: "ปิดยอดแล้ว", en: "Closed", className: "bg-purple-100 text-purple-800 border-purple-200" },
   reconciled: { th: "กระทบยอดแล้ว", en: "Reconciled", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
   unreconciled: { th: "รอกระทบยอด", en: "Unreconciled", className: "bg-amber-100 text-amber-800 border-amber-200" },
 };
