@@ -39,7 +39,8 @@ export async function GET(req: NextRequest) {
                 'amount_approved', ei.amount_approved,
                 'payment_source', ei.payment_source,
                 'status', ei.status,
-                'spent_at', ei.spent_at
+                'spent_at', ei.spent_at,
+                'receipt_file_path', ei.receipt_file_path
               )) FILTER (WHERE ei.id IS NOT NULL), '[]'::jsonb) AS items,
               COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
                 'id', eal.id,

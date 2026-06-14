@@ -594,10 +594,17 @@ export default function ExpensesPage() {
                             <span>{formatMoney(it.amount_approved, lang)}</span>
                           </div>
                         )}
+                        {it.spent_at && (
+                          <div className="text-surface-500 mt-1 flex justify-between">
+                            <span>🕒 {t("วันที่ใช้จ่ายจริง:", "Spent Date:")}</span>
+                            <span className="font-medium">{formatDate(it.spent_at, lang)}</span>
+                          </div>
+                        )}
                         {it.receipt_file_path && (
-                          <div className="mt-1">
+                          <div className="mt-1 flex justify-between">
+                            <span>📎 {t("หลักฐานการจ่าย:", "Proof:")}</span>
                             <a href={uatPath(it.receipt_file_path)} target="_blank" rel="noreferrer" className="text-brand-600 underline font-medium">
-                              📂 {t("ดูหลักฐานการจ่าย", "View Receipt")}
+                              {t("ดูหลักฐานการจ่าย", "View Receipt")}
                             </a>
                           </div>
                         )}
