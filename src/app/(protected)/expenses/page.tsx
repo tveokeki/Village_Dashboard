@@ -44,8 +44,13 @@ export default function ExpensesPage() {
   const [paymentReceipt, setPaymentReceipt] = useState("");
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
 
+  // Dynamic uploads inside individual approval steps
+  const [uploadingItemReceiptIndex, setUploadingItemReceiptIndex] = useState<string | null>(null);
+  const [itemReceiptPaths, setItemReceiptPaths] = useState<Record<string, string>>({});
+
   useEffect(() => {
     setPaymentReceipt("");
+    setItemReceiptPaths({});
   }, [selected, approvalAction]);
 
   async function handleUploadPaymentReceipt(file: File) {
@@ -66,6 +71,27 @@ export default function ExpensesPage() {
       alert(err.message);
     } finally {
       setUploadingReceipt(false);
+    }
+  }
+
+  async function handleUploadItemReceipt(itemId: string, file: File) {
+    if (!file) return;
+    setUploadingItemReceiptIndex(itemId);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("type", "documents");
+      const res = await fetch(uatPath("/api/admin/upload"), {
+        method: "POST",
+        body: fd
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setItemReceiptPaths((prev) => ({ ...prev, [itemId]: data.file_path }));
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUploadingItemReceiptIndex(null);
     }
   }
 
@@ -174,6 +200,11 @@ export default function ExpensesPage() {
         setStats(data.stats || []);
         setBalances(data.petty_cash_balances || []);
         setLedger(data.petty_cash_ledger || []);
+        // Maintain selection
+        if (selected) {
+          const found = (data.requests || []).find((x: any) => x.id === selected.id);
+          if (found) setSelected(found);
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -300,7 +331,14 @@ export default function ExpensesPage() {
       let payload: any = { action: approvalAction };
 
       if (approvalAction === "approved") {
-        payload.total_approved = String(f.get("total_approved") || "").replace(/,/g, "");
+        // Collect partial approvals per item
+        payload.items = selected.items.map((it: any) => {
+          const approvedVal = String(f.get(`approved_amount_${it.id}`) || "").replace(/,/g, "");
+          return {
+            id: it.id,
+            amount_approved: approvedVal === "0" ? "0.00" : (approvedVal || it.amount_requested)
+          };
+        });
         payload.notes = f.get("notes");
       } 
       else if (approvalAction === "disbursed") {
@@ -310,14 +348,13 @@ export default function ExpensesPage() {
         payload.notes = f.get("notes");
       }
       else if (approvalAction === "spent") {
-        // Collect actually spent values from the inputs
-        payload.items = selected.items.map((it: any) => {
+        payload.items = selected.items.filter((it: any) => it.status !== "rejected").map((it: any) => {
           const actualVal = String(f.get(`actual_spent_${it.id}`) || "").replace(/,/g, "");
           const spentAtVal = f.get(`spent_at_${it.id}`);
-          const receiptVal = f.get(`receipt_${it.id}`) || it.receipt_file_path;
+          const receiptVal = itemReceiptPaths[it.id] || it.receipt_file_path;
           return {
             id: it.id,
-            amount_approved: actualVal || it.amount_requested,
+            amount_approved: actualVal || it.amount_approved || it.amount_requested,
             spent_at: spentAtVal || null,
             receipt_file_path: receiptVal || null
           };
@@ -366,6 +403,11 @@ export default function ExpensesPage() {
       await loadExpenses();
     } catch (err: any) { setMessage(err.message); } finally { setSaving(false); }
   }
+
+  const sortedLogs = useMemo(() => {
+    if (!selected?.approval_logs) return [];
+    return [...selected.approval_logs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }, [selected]);
 
   return (
     <div className="container mx-auto px-4 pb-24 pt-4 text-surface-900">
@@ -483,7 +525,7 @@ export default function ExpensesPage() {
             </div>
 
             {selected && (
-              <div className="lg:col-span-5 card p-5 border border-surface-200 shadow-lg space-y-4 bg-white sticky top-4">
+              <div className="lg:col-span-5 card p-5 border border-surface-200 shadow-lg space-y-4 bg-white sticky top-4 max-h-[85vh] overflow-y-auto no-scrollbar">
                 <div className="flex justify-between items-start border-b pb-3">
                   <div>
                     <h3 className="font-bold text-lg text-surface-900">{selected.request_number}</h3>
@@ -528,22 +570,27 @@ export default function ExpensesPage() {
                   )}
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 border-b pb-3">
                   <div className="font-semibold text-sm text-surface-900">📋 {t("รายการย่อย", "Line Items")}</div>
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {selected.items?.map((it: any) => (
                       <div key={it.id} className="p-3 bg-surface-50 rounded-xl border border-surface-200 text-xs">
                         <div className="flex justify-between font-medium text-surface-900">
                           <span>{it.description}</span>
-                          <span>{formatMoney(it.amount_requested, lang)}</span>
+                          <span className={it.status === "rejected" ? "line-through text-red-500" : ""}>
+                            {formatMoney(it.amount_requested, lang)}
+                          </span>
                         </div>
                         <div className="text-surface-500 mt-1 flex justify-between">
                           <span>📁 {it.category}</span>
                           <span>💳 {it.payment_source}</span>
                         </div>
-                        {it.amount_approved !== null && (
+                        {it.status === "rejected" && (
+                          <div className="text-red-600 font-bold mt-1 text-right">❌ {t("ไม่อนุมัติยอดนี้", "Rejected")}</div>
+                        )}
+                        {it.amount_approved !== null && it.status !== "rejected" && (
                           <div className="text-emerald-700 font-medium mt-1 flex justify-between">
-                            <span>💸 {t("จ่ายจริง:", "Spent Amount:")}</span>
+                            <span>💸 {selected.status === "approved" || selected.status === "disbursed" ? t("อนุมัติจริง:", "Approved Amount:") : t("จ่ายจริง:", "Spent Amount:")}</span>
                             <span>{formatMoney(it.amount_approved, lang)}</span>
                           </div>
                         )}
@@ -559,7 +606,53 @@ export default function ExpensesPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-3 border-t">
+                {/* 📜 Dynamic Progress History Logs Timeline */}
+                {sortedLogs.length > 0 && (
+                  <div className="space-y-3 border-b pb-4">
+                    <div className="font-semibold text-sm text-surface-900">📜 {t("ประวัติการดำเนินงาน (History)", "Workflow History")}</div>
+                    <div className="relative border-l border-surface-200 pl-4 ml-1.5 space-y-3 text-xs max-h-48 overflow-y-auto pr-1">
+                      {sortedLogs.map((log) => {
+                        let actionLabelTh = log.action;
+                        let actionLabelEn = log.action;
+                        let colorClass = "bg-surface-400";
+
+                        if (log.action === "created" || log.action === "submitted") {
+                          actionLabelTh = "Manager เสนอเบิก"; actionLabelEn = "Submitted request"; colorClass = "bg-amber-500";
+                        } else if (log.action === "approved") {
+                          actionLabelTh = "อนุมัติรายการ"; actionLabelEn = "Approved request"; colorClass = "bg-emerald-500";
+                        } else if (log.action === "rejected") {
+                          actionLabelTh = "ปฏิเสธใบเบิก"; actionLabelEn = "Rejected request"; colorClass = "bg-red-500";
+                        } else if (log.action === "disbursed") {
+                          actionLabelTh = "บัญชีโอนเงินแล้ว"; actionLabelEn = "Disbursed funds"; colorClass = "bg-blue-500";
+                        } else if (log.action === "spent") {
+                          actionLabelTh = "Manager จ่ายเงินครบ"; actionLabelEn = "Reported spent"; colorClass = "bg-indigo-500";
+                        } else if (log.action === "closed") {
+                          actionLabelTh = "บัญชีปิดยอดสำเร็จ"; actionLabelEn = "Audited & Closed"; colorClass = "bg-purple-500";
+                        } else if (log.action === "cancelled" || log.action === "deleted") {
+                          actionLabelTh = "ยกเลิกคำขอ"; actionLabelEn = "Cancelled"; colorClass = "bg-surface-400";
+                        }
+
+                        return (
+                          <div key={log.id} className="relative">
+                            <span className={`absolute -left-[21.5px] top-0.5 w-3.5 h-3.5 rounded-full ${colorClass} border-2 border-white`} />
+                            <div className="font-semibold text-surface-900 flex justify-between">
+                              <span>{t(actionLabelTh, actionLabelEn)}</span>
+                              {log.new_total_approved !== null && (
+                                <span className="text-brand-600 font-bold">{formatMoney(log.new_total_approved, lang)}</span>
+                              )}
+                            </div>
+                            <div className="text-xxs text-surface-400 mt-0.5">
+                              👤 {log.actor_name || t("ระบบ", "System")} • 🕒 {new Date(log.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}
+                            </div>
+                            {log.notes && <div className="text-xxs text-surface-500 mt-1 italic">💬 {log.notes}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-3">
                   {/* Manager and requester can edit/delete only if pending or draft */}
                   {(selected.status === "pending" || selected.status === "draft") && (
                     <>
@@ -608,10 +701,22 @@ export default function ExpensesPage() {
                       <button type="button" onClick={() => setApprovalAction(null)} className="text-surface-400">✕</button>
                     </div>
 
+                    {/* Partial / All Item approvals for Presidents */}
                     {approvalAction === "approved" && (
                       <div className="space-y-3">
-                        <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider">{t("จำนวนเงินอนุมัติรวม", "Approved Total")}</label>
-                        <input name="total_approved" defaultValue={selected.total_requested ? parseFloat(String(selected.total_requested)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} className="input-field text-sm" placeholder={t("จำนวนเงิน", "Amount")} onFocus={(e) => { e.target.value = e.target.value.replace(/,/g, ""); }} onBlur={(e) => { const num = parseFloat(e.target.value.replace(/,/g, "")); if (!isNaN(num)) { e.target.value = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }} />
+                        <div className="font-semibold text-xs text-surface-400 uppercase tracking-wider">{t("อนุมัติยอดรายคอลัมน์ย่อย (อนุมัติบางส่วนได้)", "Approve amount per item")}</div>
+                        {selected.items?.map((it: any) => (
+                          <div key={it.id} className="p-3 bg-white rounded-lg border border-surface-200 space-y-2 text-xs">
+                            <div className="font-medium text-surface-900 flex justify-between">
+                              <span>{it.description}</span>
+                              <span className="text-surface-400">({t("ตั้งเบิก:", "Request:")} {formatMoney(it.amount_requested, lang)})</span>
+                            </div>
+                            <div>
+                              <label className="block text-xxs font-medium text-surface-400 mb-1">{t("ยอดอนุมัติเงิน (ใส่ 0 หากต้องการไม่อนุมัติยอดนี้)", "Approved amount (Set 0 to Reject)")}</label>
+                              <input name={`approved_amount_${it.id}`} defaultValue={it.amount_requested} className="input-field text-xs text-right" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
 
@@ -660,22 +765,43 @@ export default function ExpensesPage() {
 
                     {approvalAction === "spent" && (
                       <div className="space-y-3">
-                        <div className="font-semibold text-xs text-surface-400 uppercase tracking-wider">{t("รายละเอียดจ่ายจริงแต่ละรายการ", "Spent Details per Item")}</div>
-                        {selected.items?.map((it: any) => (
+                        <div className="font-semibold text-xs text-surface-400 uppercase tracking-wider">{t("รายละเอียดจ่ายจริงแต่ละรายการ (เฉพาะยอดที่อนุมัติ)", "Spent Details per Approved Item")}</div>
+                        {selected.items?.filter((it: any) => it.status !== "rejected").map((it: any) => (
                           <div key={it.id} className="p-3 bg-white rounded-lg border border-surface-200 space-y-2 text-xs">
                             <div className="font-medium text-surface-900 flex justify-between">
                               <span>{it.description}</span>
-                              <span className="text-surface-500">(เบิก: {formatMoney(it.amount_requested, lang)})</span>
+                              <span className="text-surface-500">(อนุมัติ: {formatMoney(it.amount_approved || it.amount_requested, lang)})</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="block text-xxs font-medium text-surface-400 mb-1">{t("จำนวนเงินจ่ายจริง", "Spent Amount")}</label>
-                                <input name={`actual_spent_${it.id}`} defaultValue={it.amount_requested} className="input-field text-xs text-right" />
+                                <input name={`actual_spent_${it.id}`} defaultValue={it.amount_approved || it.amount_requested} className="input-field text-xs text-right" />
                               </div>
                               <div>
                                 <label className="block text-xxs font-medium text-surface-400 mb-1">{t("วันที่ใช้จ่าย", "Spent Date")}</label>
                                 <input name={`spent_at_${it.id}`} type="date" className="input-field text-xs" />
                               </div>
+                            </div>
+
+                            {/* Individual receipt attachment */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-50 p-2 rounded-lg border border-dashed border-surface-200 mt-2">
+                              <div className="flex items-center gap-1.5 text-xxs text-surface-500">
+                                <span>📎 {t("ใบเสร็จ:", "Receipt:")}</span>
+                                {itemReceiptPaths[it.id] || it.receipt_file_path ? (
+                                  <a href={uatPath(itemReceiptPaths[it.id] || it.receipt_file_path || "")} target="_blank" rel="noreferrer" className="text-brand-600 underline break-all font-medium">
+                                    {(itemReceiptPaths[it.id] || it.receipt_file_path || "").split("/").pop()}
+                                  </a>
+                                ) : (
+                                  <span className="text-surface-400">({t("ไม่มี", "None")})</span>
+                                )}
+                              </div>
+                              <label className="cursor-pointer text-[10px] bg-white hover:bg-surface-100 px-2 py-1.5 rounded border">
+                                {uploadingItemReceiptIndex === it.id ? t("โหลด...", "Uploading...") : t("📁 ใบเสร็จ", "📁 Upload")}
+                                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadItemReceipt(it.id, file);
+                                }} />
+                              </label>
                             </div>
                           </div>
                         ))}

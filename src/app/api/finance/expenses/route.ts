@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
               COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
                 'id', eal.id,
                 'actor_user_id', eal.actor_user_id,
+                'actor_name', COALESCE(log_actor.display_name, log_actor.email),
                 'action', eal.action,
                 'old_status', eal.old_status,
                 'new_status', eal.new_status,
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest) {
        LEFT JOIN slip_processing.web_users approver ON approver.id = er.approved_by
        LEFT JOIN slip_processing.expense_items ei ON ei.request_id = er.id AND ei.deleted_at IS NULL
        LEFT JOIN slip_processing.expense_approval_logs eal ON eal.request_id = er.id
+       LEFT JOIN slip_processing.web_users log_actor ON log_actor.id = eal.actor_user_id
        ${where}
        GROUP BY er.id, requester.display_name, requester.email, approver.display_name, approver.email
        ORDER BY er.requested_at DESC
