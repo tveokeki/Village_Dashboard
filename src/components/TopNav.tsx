@@ -23,13 +23,18 @@ export default function TopNav() {
   };
   const roles = user?.roles || [user?.role || "resident"];
   const canFinance = Boolean(!userLoading && (user?.isAdmin || roles.some((role: any) => ["admin", "accountant", "manager"].includes(role))));
-  const showAdmin = Boolean(!userLoading && user?.isAdmin);
+  const showAdmin = Boolean(!userLoading && (roles.includes("admin") || roles.includes("manager")));
   const mainItems = [
     { icon: "🏠", label: lang === "th" ? "แดชบอร์ด" : "Dashboard", href: "/dashboard" },
     { icon: "🔔", label: lang === "th" ? "แจ้งเตือน" : "Notifications", href: "/notifications" },
     { icon: "📢", label: lang === "th" ? "ประกาศ" : "Announcements", href: "/announcements" },
     { icon: "📄", label: lang === "th" ? "เอกสาร" : "Documents", href: "/documents" },
     { icon: "🎫", label: lang === "th" ? "รายการปัญหา" : "Tickets", href: "/tickets" },
+    { icon: "💳", label: lang === "th" ? "ประวัติค่าส่วนกลาง" : "Fee History", href: "/common-fee-history" },
+  ];
+  const registrationItems = [
+    { icon: "👨‍👩‍👧‍👦", label: lang === "th" ? "สมาชิกในบ้าน" : "Household Members", href: "/registration/household-members" },
+    { icon: "🐾", label: lang === "th" ? "สัตว์เลี้ยง" : "Pets", href: "/registration/pets" },
   ];
   const financeItems = [
     { icon: "👥", label: lang === "th" ? "สมาชิก" : "Members", href: "/members" },
@@ -44,6 +49,7 @@ export default function TopNav() {
     { icon: "📢", label: lang === "th" ? "จัดการประกาศ" : "Announcements", href: "/admin/announcements" },
     { icon: "📄", label: lang === "th" ? "จัดการเอกสาร" : "Documents", href: "/admin/documents" },
     { icon: "🎫", label: lang === "th" ? "จัดการปัญหาร้องเรียน" : "Tickets", href: "/admin/tickets" },
+    { icon: "📋", label: lang === "th" ? "รายงานสมาชิกและสัตว์เลี้ยง" : "Member & Pet Report", href: "/admin/member-pet-report" },
     { icon: "👥", label: lang === "th" ? "จัดการผู้ใช้" : "Users", href: "/admin/users" },
     { icon: "🔔", label: lang === "th" ? "จัดการแจ้งเตือน" : "Notifications", href: "/admin/notifications" },
   ];
@@ -98,6 +104,26 @@ export default function TopNav() {
               <span className="text-sm">{item.label}</span>
             </a>
           ))}
+
+          <div className="rounded-2xl border border-surface-100 bg-surface-50/70 py-1">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-surface-700 font-medium">
+              <span className="text-lg">📝</span>
+              <span className="text-sm">{lang === "th" ? "ลงทะเบียน" : "Registration"}</span>
+            </div>
+            <div className="pl-7 pr-2 pb-2 space-y-1">
+              {registrationItems.map((item) => (
+                <a
+                  key={item.href}
+                  href={uatPath(item.href)}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-surface-600 hover:bg-white hover:text-brand-700 transition-colors text-sm"
+                >
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
 
           {canFinance && (
             <div className="rounded-2xl border border-surface-100 bg-surface-50/70 py-1">

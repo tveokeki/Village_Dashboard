@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireAdminOrManager } from "@/lib/session";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; logId: string }> }) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdminOrManager();
     const { id, logId } = await params;
     const body = await req.json();
     const note = String(body.note || "").trim();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
-import { notifyLineResolvedConfirmation, notifyLineTicketUpdate, type LinePushResult } from "@/lib/line-ticket-notifications";
+import { requireAdminOrManager } from "@/lib/session";
+import { notifyLineResolvedConfirmation, notifyLineTicketUpdate, notifyLineTicketUpdateToManagers, type LinePushResult } from "@/lib/line-ticket-notifications";
 import crypto from "crypto";
 
 const allowedStatuses = new Set(["received", "in_progress", "resolved", "closed", "cancelled"]);
@@ -28,7 +28,7 @@ async function getLogs(ticketId: string, adminId: string) {
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdminOrManager();
     const { id } = await params;
     const body = await req.json();
 
@@ -111,12 +111,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         { line_user_id: before.line_user_id, language_code: before.language_code },
       );
       lineNotification = lineConfirmation;
+
+      // Notify all managers
+      await notifyLineTicketUpdateToManagers(ticket, { isResolved: true, skipLineUserId: before.line_user_id });
     } else if (statusChanged || progressNote) {
       lineNotification = await notifyLineTicketUpdate(
         ticket,
         { line_user_id: before.line_user_id, language_code: before.language_code },
         { statusChanged, progressNote, oldStatus: before.status, newStatus: status },
       );
+
+      // Notify all managers
+      await notifyLineTicketUpdateToManagers(ticket, { statusChanged, progressNote, oldStatus: before.status, newStatus: status, skipLineUserId: before.line_user_id });
     }
 
     if (notificationId && lineNotification?.sent) {
@@ -131,7 +137,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const { id } = await params;
     await query("UPDATE slip_processing.problem_tickets SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1", [id]);
     return NextResponse.json({ success: true });

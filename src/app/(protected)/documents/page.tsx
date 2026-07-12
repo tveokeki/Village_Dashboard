@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLanguage } from "@/components/LanguageContext";
 import { DropdownGroups, fetchDropdownGroups } from "@/lib/dropdown-client";
 
@@ -14,6 +14,35 @@ export default function DocumentsPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [loading, setLoading] = useState(true);
   const [dropdownGroups, setDropdownGroups] = useState<DropdownGroups>({});
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-01-01`;
+  });
+  const [toDate, setToDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split("T")[0];
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      const dateStr = doc.published_at ? new Date(doc.published_at).toISOString().split("T")[0] : "";
+      return dateStr >= fromDate && dateStr <= toDate;
+    });
+  }, [documents, fromDate, toDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / 10));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredDocuments, totalPages, currentPage]);
+
+  const paginatedDocuments = useMemo(() => {
+    const start = (currentPage - 1) * 10;
+    return filteredDocuments.slice(start, start + 10);
+  }, [filteredDocuments, currentPage]);
 
   useEffect(() => {
     fetchDropdownGroups(["document_category"]).then(setDropdownGroups).catch(console.error);
@@ -85,17 +114,46 @@ export default function DocumentsPage() {
         ))}
       </div>
 
+      {/* Date Filters */}
+      <div className="bg-white p-4 rounded-3xl border border-surface-200 shadow-sm grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-surface-500 mb-1">{t("ตั้งแต่วันที่", "From Date")}</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-semibold"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-surface-500 mb-1">{t("ถึงวันที่", "To Date")}</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-semibold"
+          />
+        </div>
+      </div>
+
       {loading ? (
         <div className="text-center py-12 text-surface-500">
           {t("กำลังโหลด...", "Loading...")}
         </div>
-      ) : documents.length === 0 ? (
+      ) : filteredDocuments.length === 0 ? (
         <div className="text-center py-12 text-surface-500">
-          {t("ไม่มีเอกสารในหมวดนี้", "No documents in this category")}
+          {t("ไม่มีเอกสารในช่วงเวลาที่เลือก", "No documents in selected date range")}
         </div>
       ) : (
+        <>
         <div className="space-y-3">
-          {documents.map((doc) => (
+          {paginatedDocuments.map((doc) => (
             <div
               key={doc.id}
               className="bg-white rounded-xl border border-surface-200 shadow-sm p-3"
@@ -131,6 +189,29 @@ export default function DocumentsPage() {
             </div>
           ))}
         </div>
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-surface-200">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="px-4 py-2 border border-surface-200 rounded-xl text-xs font-semibold bg-white text-surface-600 hover:bg-surface-50 disabled:opacity-50 transition-colors"
+            >
+              {t("ก่อนหน้า", "Previous")}
+            </button>
+            <span className="text-xs text-surface-500 font-medium">
+              {t(`หน้า ${currentPage} จาก ${totalPages}`, `Page ${currentPage} of ${totalPages}`)}
+            </span>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="px-4 py-2 border border-surface-200 rounded-xl text-xs font-semibold bg-white text-surface-600 hover:bg-surface-50 disabled:opacity-50 transition-colors"
+            >
+              {t("ถัดไป", "Next")}
+            </button>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

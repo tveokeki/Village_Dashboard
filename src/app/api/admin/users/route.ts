@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireAdminOrManager } from "@/lib/session";
 import { mergeLegacyRoles } from "@/lib/user-roles";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const [usersResult, rolesResult] = await Promise.all([
       query(`
         SELECT
@@ -13,6 +13,7 @@ export async function GET() {
           wu.email,
           wu.display_name,
           wu.house_number,
+          wu.phone,
           wu.role,
           wu.is_admin,
           wu.notification_enabled,

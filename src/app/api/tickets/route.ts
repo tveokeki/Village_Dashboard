@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
+import { notifyLineTicketUpdateToManagers } from "@/lib/line-ticket-notifications";
 
 const allowedPriorities = new Set(["low", "medium", "high", "urgent"]);
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -211,6 +212,21 @@ export async function POST(req: NextRequest) {
        VALUES ($1,$2,'received',$3,$4,$5,$6,NOW())`,
       [crypto.randomUUID(), ticket.id, ticket.priority, upload ? "สร้างรายการปัญหาพร้อมแนบรูปภาพ" : "สร้างรายการปัญหา", residentUserId, user.name || user.email || "Web user"]
     );
+
+    try {
+      await notifyLineTicketUpdateToManagers(
+        {
+          id: ticket.id,
+          ticket_number: ticket.ticket_number,
+          problem_title: ticket.problem_title,
+          house_number: ticket.house_number,
+          unit_number: ticket.unit_number,
+        },
+        { isNewTicket: true }
+      );
+    } catch (err) {
+      console.error("Failed to notify managers on LINE:", err);
+    }
 
     const [decorated] = await decorateTickets([ticket]);
     return NextResponse.json({ success: true, ticket: decorated }, { status: 201 });

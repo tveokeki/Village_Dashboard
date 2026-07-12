@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireAdminOrManager } from "@/lib/session";
 import { autoTranslateAnnouncementEnglish } from "@/lib/sharon-translation";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const { id } = await params;
     const body = await autoTranslateAnnouncementEnglish(await req.json());
     await query(
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const { id } = await params;
     await query("UPDATE slip_processing.announcements SET deleted_at = NOW(), updated_at = NOW() WHERE id=$1", [id]);
     return NextResponse.json({ success: true });

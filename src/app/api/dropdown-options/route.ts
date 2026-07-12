@@ -36,6 +36,13 @@ export async function GET(req: NextRequest) {
       return acc;
     }, {});
 
+    if (groups.includes("expense_categories") || groups.length === 0) {
+      const expCategories = await query(
+        `SELECT main_category, sub_category FROM slip_processing.expense_categories ORDER BY main_category ASC, sub_category ASC`
+      );
+      groupsMap["expense_categories"] = expCategories.rows;
+    }
+
     return NextResponse.json({ groups: groupsMap, options: result.rows });
   } catch (err: any) {
     console.error("Dropdown options API error:", err);

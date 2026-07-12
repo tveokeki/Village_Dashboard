@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
                 'id', ei.id,
                 'description', ei.description,
                 'category', ei.category,
+                'subcategory', ei.subcategory,
+                'notes', ei.notes,
                 'amount_requested', ei.amount_requested,
                 'amount_approved', ei.amount_approved,
                 'payment_source', ei.payment_source,
@@ -95,6 +97,8 @@ export async function POST(req: NextRequest) {
     const normalizedItems = items.map((item: any) => ({
       description: requiredString(item.description, "item.description"),
       category: requiredString(item.category, "item.category"),
+      subcategory: item.subcategory || null,
+      notes: item.notes || null,
       amount: positiveMoney(item.amount ?? item.amount_requested, "item.amount"),
       payment_source: item.payment_source || "bank_transfer",
       spent_at: item.spent_at || null,
@@ -114,9 +118,9 @@ export async function POST(req: NextRequest) {
 
     for (const item of normalizedItems) {
       await client.query(
-        `INSERT INTO slip_processing.expense_items (request_id, description, category, amount_requested, payment_source, spent_at, receipt_file_path, metadata)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [request.id, item.description, item.category, item.amount, item.payment_source, item.spent_at, item.receipt_file_path, item.metadata]
+        `INSERT INTO slip_processing.expense_items (request_id, description, category, subcategory, notes, amount_requested, payment_source, spent_at, receipt_file_path, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [request.id, item.description, item.category, item.subcategory, item.notes, item.amount, item.payment_source, item.spent_at, item.receipt_file_path, item.metadata]
       );
     }
 

@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { icon: "📢", label: { th: "ประกาศ", en: "Announcements" }, href: "/announcements" },
   { icon: "📄", label: { th: "เอกสาร", en: "Documents" }, href: "/documents" },
   { icon: "🎫", label: { th: "รายการปัญหา", en: "Tickets" }, href: "/tickets" },
+  { icon: "💳", label: { th: "ประวัติค่าส่วนกลาง", en: "Fee History" }, href: "/common-fee-history" },
   { icon: "👤", label: { th: "โปรไฟล์", en: "Profile" }, href: "/profile" },
 ];
 
@@ -26,8 +27,14 @@ const adminItems: NavItem[] = [
   { icon: "📢", label: { th: "จัดการประกาศ", en: "Announcements" }, href: "/admin/announcements" },
   { icon: "📄", label: { th: "จัดการเอกสาร", en: "Documents" }, href: "/admin/documents" },
   { icon: "🎫", label: { th: "จัดการปัญหาร้องเรียน", en: "Tickets" }, href: "/admin/tickets" },
+  { icon: "📋", label: { th: "รายงานสมาชิกและสัตว์เลี้ยง", en: "Member & Pet Report" }, href: "/admin/member-pet-report" },
   { icon: "👥", label: { th: "จัดการผู้ใช้", en: "Users" }, href: "/admin/users" },
   { icon: "🔔", label: { th: "จัดการแจ้งเตือน", en: "Notifications" }, href: "/admin/notifications" },
+];
+
+const registrationItems: NavItem[] = [
+  { icon: "👨‍👩‍👧‍👦", label: { th: "สมาชิกในบ้าน", en: "Household Members" }, href: "/registration/household-members" },
+  { icon: "🐾", label: { th: "สัตว์เลี้ยง", en: "Pets" }, href: "/registration/pets" },
 ];
 
 const financeItems: NavItem[] = [
@@ -55,9 +62,10 @@ export default function Sidebar() {
   const roles = user?.roles || [user?.role || "resident"];
   const canFinance = Boolean(!userLoading && (user?.isAdmin || roles.some((role: string) => ["admin", "accountant", "manager"].includes(role))));
   const visibleNavItems = navItems;
+  const registrationActive = registrationItems.some((item) => isActive(pathname, item.href));
   const financeActive = financeItems.some((item) => isActive(pathname, item.href));
   const adminActive = adminItems.some((item) => isActive(pathname, item.href));
-  const showAdmin = Boolean(!userLoading && user?.isAdmin);
+  const showAdmin = Boolean(!userLoading && (roles.includes("admin") || roles.includes("manager")));
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: uatPath("/login") });
@@ -78,7 +86,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {visibleNavItems.slice(0, 5).map((item) => {
+        {visibleNavItems.slice(0, 6).map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link
@@ -95,6 +103,32 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        <div className={`rounded-2xl border transition-colors ${registrationActive ? "bg-brand-50/60 border-brand-200" : "border-transparent"}`}>
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${registrationActive ? "text-brand-700 font-medium" : "text-surface-700"}`}>
+            <span className="text-lg">📝</span>
+            <span className="text-sm">{lang === "th" ? "ลงทะเบียน" : "Registration"}</span>
+          </div>
+          <div className="pb-2 pl-7 pr-2 space-y-1">
+            {registrationItems.map((item) => {
+              const active = isActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={uatPath(item.href)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                    active
+                      ? "bg-white text-brand-700 font-medium shadow-sm"
+                      : "text-surface-600 hover:bg-surface-100 hover:text-surface-800"
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  <span>{item.label[lang === "th" ? "th" : "en"]}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
 
         {canFinance && (
           <div className={`rounded-2xl border transition-colors ${financeActive ? "bg-brand-50/60 border-brand-200" : "border-transparent"}`}>
@@ -152,7 +186,7 @@ export default function Sidebar() {
           </div>
         )}
 
-        {visibleNavItems.slice(5).map((item) => {
+        {visibleNavItems.slice(6).map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link

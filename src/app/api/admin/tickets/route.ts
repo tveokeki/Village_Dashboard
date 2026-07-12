@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireAdminOrManager } from "@/lib/session";
 
 const allowedStatuses = new Set(["received", "in_progress", "resolved", "closed", "cancelled"]);
 const allowedPriorities = new Set(["low", "medium", "high", "urgent"]);
 
 export async function GET(req: NextRequest) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdminOrManager();
     const { searchParams } = req.nextUrl;
     const status = searchParams.get("status");
     const priority = searchParams.get("priority");
     const q = searchParams.get("q");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10), 200);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "1000", 10), 5000);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
     const params: any[] = [];
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       params.push(`%${q.trim()}%`);
       sql += ` AND (t.ticket_number ILIKE $${params.length} OR t.house_number ILIKE $${params.length} OR t.problem_title ILIKE $${params.length} OR t.problem_description ILIKE $${params.length})`;
     }
-    sql += ` ORDER BY t.reported_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    sql += ` ORDER BY CASE WHEN t.status IN ('closed', 'cancelled') THEN 1 ELSE 0 END ASC, CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END ASC, t.reported_at ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const [tickets, stats] = await Promise.all([

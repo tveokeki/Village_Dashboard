@@ -223,7 +223,7 @@ export default function CommonFeeReportPage() {
         <button
           onClick={exportToExcel}
           disabled={rows.length === 0}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-surface-200 bg-white text-sm font-medium text-surface-700 hover:bg-surface-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-sm font-bold text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
         >
           <Download size={16} />
           {t("ส่งออก Excel", "Export Excel")}

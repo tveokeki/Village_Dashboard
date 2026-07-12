@@ -32,6 +32,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
         email: nextAuthSession.user.email || "",
         name: nextAuthSession.user.name || "",
         role: nextAuthSession.user.role || "resident",
+        roles: [nextAuthSession.user.role || "resident"],
         isAdmin: nextAuthSession.user.role === "admin",
       };
     }
@@ -54,7 +55,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
       const roles = mergeLegacyRoles(await getUserRoles(u.id), u.role, u.is_admin);
       return { id: u.id, email: u.email, name: u.display_name || decoded.name, role: u.role, roles, isAdmin: roles.includes("admin"), linkedUserId: u.user_id || null };
     }
-    return { id: decoded.sub, email: decoded.email || "", name: decoded.name || "", role: decoded.role || "resident", isAdmin: decoded.role === "admin" };
+    return { id: decoded.sub, email: decoded.email || "", name: decoded.name || "", role: decoded.role || "resident", roles: [decoded.role || "resident"], isAdmin: decoded.role === "admin" };
   } catch {
     return null;
   }
@@ -64,6 +65,18 @@ export async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     const err: any = new Error("Admin permission required");
+    err.status = 403;
+    throw err;
+  }
+  return user;
+}
+
+export async function requireAdminOrManager() {
+  const user = await getCurrentUser();
+  const roles = user?.roles || [];
+  const isAuthorized = roles.includes("admin") || roles.includes("manager");
+  if (!user || !isAuthorized) {
+    const err: any = new Error("Admin or Manager permission required");
     err.status = 403;
     throw err;
   }

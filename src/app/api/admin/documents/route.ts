@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireAdminOrManager } from "@/lib/session";
 import { autoTranslateDocumentEnglish } from "@/lib/sharon-translation";
 import crypto from "crypto";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const r = await query(`
       SELECT id, title_th, title_en, description_th, description_en, category,
              file_name, file_path, file_size_bytes, mime_type, is_active, sort_order, published_at, created_at, updated_at
@@ -23,7 +23,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdminOrManager();
     const body = await autoTranslateDocumentEnglish(await req.json());
     const id = crypto.randomUUID();
     await query(

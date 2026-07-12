@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useLanguage } from "@/components/LanguageContext";
 import { DropdownGroups, fetchDropdownGroups, optionWithIcon } from "@/lib/dropdown-client";
 
@@ -15,6 +15,35 @@ export default function AnnouncementsPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [loading, setLoading] = useState(true);
   const [dropdownGroups, setDropdownGroups] = useState<DropdownGroups>({});
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-01-01`;
+  });
+  const [toDate, setToDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split("T")[0];
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredAnnouncements = useMemo(() => {
+    return announcements.filter((a) => {
+      const dateStr = a.published_at ? new Date(a.published_at).toISOString().split("T")[0] : "";
+      return dateStr >= fromDate && dateStr <= toDate;
+    });
+  }, [announcements, fromDate, toDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAnnouncements.length / 10));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredAnnouncements, totalPages, currentPage]);
+
+  const paginatedAnnouncements = useMemo(() => {
+    const start = (currentPage - 1) * 10;
+    return filteredAnnouncements.slice(start, start + 10);
+  }, [filteredAnnouncements, currentPage]);
 
   const fetchAnnouncements = useCallback(async (cat: string) => {
     setLoading(true);
@@ -110,17 +139,46 @@ export default function AnnouncementsPage() {
         ))}
       </div>
 
+      {/* Date Filters */}
+      <div className="bg-white p-4 rounded-3xl border border-surface-200 shadow-sm grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-surface-500 mb-1">{t("ตั้งแต่วันที่", "From Date")}</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-semibold"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-surface-500 mb-1">{t("ถึงวันที่", "To Date")}</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-semibold"
+          />
+        </div>
+      </div>
+
       {loading ? (
         <div className="text-center py-12 text-surface-500">
           {t("กำลังโหลด...", "Loading...")}
         </div>
-      ) : announcements.length === 0 ? (
+      ) : filteredAnnouncements.length === 0 ? (
         <div className="text-center py-12 text-surface-500">
-          {t("ไม่มีประกาศในหมวดนี้", "No announcements in this category")}
+          {t("ไม่มีประกาศในช่วงเวลาที่เลือก", "No announcements in selected date range")}
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {announcements.map((a) => (
+          {paginatedAnnouncements.map((a) => (
             <article
               key={a.id}
               role="button"
@@ -161,6 +219,29 @@ export default function AnnouncementsPage() {
             </article>
           ))}
         </div>
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-surface-200">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="px-4 py-2 border border-surface-200 rounded-xl text-xs font-semibold bg-white text-surface-600 hover:bg-surface-50 disabled:opacity-50 transition-colors"
+            >
+              {t("ก่อนหน้า", "Previous")}
+            </button>
+            <span className="text-xs text-surface-500 font-medium">
+              {t(`หน้า ${currentPage} จาก ${totalPages}`, `Page ${currentPage} of ${totalPages}`)}
+            </span>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="px-4 py-2 border border-surface-200 rounded-xl text-xs font-semibold bg-white text-surface-600 hover:bg-surface-50 disabled:opacity-50 transition-colors"
+            >
+              {t("ถัดไป", "Next")}
+            </button>
+          </div>
+        )}
+        </>
       )}
 
       {selectedAnnouncement && (

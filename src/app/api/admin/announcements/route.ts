@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireAdminOrManager } from "@/lib/session";
 import { announcementDetailUrl, broadcastAnnouncementToLine } from "@/lib/line-announcement-broadcast";
 import { autoTranslateAnnouncementEnglish } from "@/lib/sharon-translation";
 import crypto from "crypto";
 
 export async function GET() {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const r = await query(`
       SELECT id, title_th, title_en, content_th, content_en, category, is_pinned, is_published,
              COALESCE(image_path, cover_image_path) AS image_path, published_at, created_at, updated_at
@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdminOrManager();
     const body = await autoTranslateAnnouncementEnglish(await req.json());
     const id = crypto.randomUUID();
     const publishedAt = body.is_published === false ? null : new Date().toISOString();

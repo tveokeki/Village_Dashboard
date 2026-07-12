@@ -20,10 +20,10 @@ export default function KpiCard({
     surface: "bg-surface-50 text-surface-700 border-surface-200",
   };
   return (
-    <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4 min-w-0">
-      <div className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${tones[tone]}`}>{label}</div>
-      <div className="mt-3 text-xl lg:text-2xl font-bold text-surface-900 tabular-nums break-words">{value}</div>
-      {hint ? <div className="mt-1 text-xs text-surface-500 break-words">{hint}</div> : null}
+    <div className="bg-white rounded-2xl border border-surface-200 shadow-sm p-3 sm:p-4 min-w-0">
+      <div className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] sm:text-[11px] font-medium ${tones[tone]}`}>{label}</div>
+      <div className="mt-3 text-base sm:text-xl lg:text-2xl font-bold text-surface-900 tabular-nums break-words">{value}</div>
+      {hint ? <div className="mt-1 text-[10px] sm:text-xs text-surface-500 break-words">{hint}</div> : null}
     </div>
   );
 }

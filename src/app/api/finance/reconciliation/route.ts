@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool, { query } from "@/lib/db";
-import { requireFinanceAccess } from "@/lib/finance-auth";
+import { requireAnyRole, requireFinanceAccess } from "@/lib/finance-auth";
 import { badRequest, parseLimit, parseOffset, positiveMoney, requiredString } from "@/lib/finance-utils";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,22 @@ export async function GET(req: NextRequest) {
                 'amount', s.amount,
                 'split_note', s.split_note,
                 'created_by', s.created_by,
-                'created_at', s.created_at
+                'created_at', s.created_at,
+                'reference_label', CASE
+                  WHEN s.reference_type = 'payment' THEN (
+                    SELECT COALESCE(p.receipt_number, '') || ' (' || m.house_number || ' - ' || m.owner_name || ')'
+                    FROM slip_processing.payments p
+                    JOIN slip_processing.members m ON m.id = p.member_id
+                    WHERE p.id = s.reference_id
+                  )
+                  WHEN s.reference_type = 'expense_item' THEN (
+                    SELECT COALESCE(er.request_number, '') || ' - ' || COALESCE(ei.description, '')
+                    FROM slip_processing.expense_items ei
+                    JOIN slip_processing.expense_requests er ON er.id = ei.request_id
+                    WHERE ei.id = s.reference_id
+                  )
+                  ELSE NULL
+                END
               ) ORDER BY s.created_at DESC) FILTER (WHERE s.id IS NOT NULL AND s.deleted_at IS NULL), '[]'::jsonb) AS splits
        FROM slip_processing.v_bank_statement_reconciliation r
        LEFT JOIN slip_processing.bank_statement_splits s ON s.bank_statement_line_id = r.id AND s.deleted_at IS NULL
@@ -41,6 +56,10 @@ export async function GET(req: NextRequest) {
          FROM slip_processing.payments p
          JOIN slip_processing.members m ON m.id = p.member_id
          WHERE p.deleted_at IS NULL AND p.status IN ('confirmed','draft')
+           AND NOT EXISTS (
+             SELECT 1 FROM slip_processing.bank_statement_splits bss
+             WHERE bss.reference_type = 'payment' AND bss.reference_id = p.id AND bss.deleted_at IS NULL
+           )
          ORDER BY p.payment_date DESC
          LIMIT 100`
       ),
@@ -48,7 +67,11 @@ export async function GET(req: NextRequest) {
         `SELECT ei.id, 'expense_item' AS reference_type, er.request_number, ei.description AS label, ei.category, COALESCE(ei.amount_approved, ei.amount_requested) AS amount, er.decided_at AS date
          FROM slip_processing.expense_items ei
          JOIN slip_processing.expense_requests er ON er.id = ei.request_id
-         WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status IN ('approved','paid')
+         WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status = 'paid'
+           AND NOT EXISTS (
+             SELECT 1 FROM slip_processing.bank_statement_splits bss
+             WHERE bss.reference_type = 'expense_item' AND bss.reference_id = ei.id AND bss.deleted_at IS NULL
+           )
          ORDER BY er.decided_at DESC NULLS LAST
          LIMIT 100`
       ),
@@ -63,9 +86,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const client = await pool.connect();
   try {
-    const user = await requireFinanceAccess();
     const body = await req.json();
     const action = body.action || body.type;
+
+    let user;
+    if (action === "statement" || action === "delete_statement" || action === "delete_line") {
+      user = await requireAnyRole(["admin", "manager", "accountant"]);
+    } else {
+      user = await requireAnyRole(["accountant"]);
+    }
+
     await client.query("BEGIN");
 
     if (action === "statement") {
@@ -117,6 +147,50 @@ export async function POST(req: NextRequest) {
       }
       await client.query("COMMIT");
       return NextResponse.json({ success: true, splits: created }, { status: 201 });
+    }
+
+    if (action === "delete_split" || action === "unmatch") {
+      const splitId = requiredString(body.split_id || body.id, "split_id");
+      const result = await client.query(
+        `UPDATE slip_processing.bank_statement_splits
+         SET deleted_at = NOW(), deleted_by = $1
+         WHERE id = $2 AND deleted_at IS NULL
+         RETURNING *`,
+        [user.id, splitId]
+      );
+      if (result.rowCount === 0) {
+        badRequest("Split not found or already deleted");
+      }
+      await client.query("COMMIT");
+      return NextResponse.json({ success: true, split: result.rows[0] });
+    }
+
+    if (action === "delete_statement" || action === "delete_line") {
+      const lineId = requiredString(body.line_id || body.id, "line_id");
+
+      const splitCheck = await client.query(
+        `SELECT COUNT(*)::int AS count
+         FROM slip_processing.bank_statement_splits
+         WHERE bank_statement_line_id = $1 AND deleted_at IS NULL`,
+        [lineId]
+      );
+      if (splitCheck.rows[0].count > 0) {
+        badRequest("Cannot delete a matched statement line. Please unmatch first.");
+      }
+
+      const result = await client.query(
+        `UPDATE slip_processing.bank_statements
+         SET deleted_at = NOW(), deleted_by = $1
+         WHERE id = $2 AND deleted_at IS NULL
+         RETURNING *`,
+        [user.id, lineId]
+      );
+      if (result.rowCount === 0) {
+        badRequest("Statement line not found or already deleted");
+      }
+
+      await client.query("COMMIT");
+      return NextResponse.json({ success: true, statement: result.rows[0] });
     }
 
     badRequest("Invalid reconciliation action");

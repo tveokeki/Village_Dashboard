@@ -286,19 +286,19 @@ export async function notifyLineTicketUpdateToManagers(
 
   try {
     const managers = await query(
-      `SELECT email, line_id, preferred_language 
-       FROM slip_processing.web_users 
+      `SELECT email, line_id, preferred_language
+       FROM slip_processing.web_users
        WHERE deleted_at IS NULL AND (role = 'manager' OR role = 'admin' OR is_admin = TRUE)`
     );
 
-    const messageTh = options.isResolved 
-      ? buildResolvedMessage(ticket, "th") 
+    const messageTh = options.isResolved
+      ? buildResolvedMessage(ticket, "th")
       : options.isNewTicket
         ? buildNewTicketMessage(ticket, "th")
         : buildGenericUpdateMessage(ticket, "th", options);
 
-    const messageEn = options.isResolved 
-      ? buildResolvedMessage(ticket, "en") 
+    const messageEn = options.isResolved
+      ? buildResolvedMessage(ticket, "en")
       : options.isNewTicket
         ? buildNewTicketMessage(ticket, "en")
         : buildGenericUpdateMessage(ticket, "en", options);
@@ -332,7 +332,7 @@ export async function notifyLineExpenseUpdate(requestId: string, action: string,
   try {
     // 1. Fetch request details
     const requestRes = await query(
-      `SELECT er.*, 
+      `SELECT er.*,
               COALESCE(req.display_name, req.email) AS requester_name,
               COALESCE(act.display_name, act.email) AS actor_name
        FROM slip_processing.expense_requests er
@@ -350,7 +350,7 @@ export async function notifyLineExpenseUpdate(requestId: string, action: string,
        FROM slip_processing.web_users wu
        LEFT JOIN slip_processing.user_roles ur ON ur.user_id = wu.id AND ur.deleted_at IS NULL
        LEFT JOIN slip_processing.roles r ON r.id = ur.role_id AND r.deleted_at IS NULL
-       WHERE wu.deleted_at IS NULL 
+       WHERE wu.deleted_at IS NULL
          AND (
            r.role_code IN ('manager', 'accountant', 'president', 'vice_president', 'admin')
            OR wu.role IN ('manager', 'accountant', 'admin')
@@ -392,29 +392,29 @@ export async function notifyLineExpenseUpdate(requestId: string, action: string,
           }
         ]
       };
-    } 
+    }
     else if (action === "approved") {
       messageTh = `✅ อนุมัติใบเบิกแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nยอดเงินอนุมัติ: ${approvedStr} บาท\nผู้อนุมัติ: ${r.actor_name}\nสถานะ: รอฝ่ายบัญชีโอนเงินให้ผู้จัดการ`;
       messageEn = `✅ Expense Approved: ${r.request_number}\nTitle: ${r.title}\nApproved Amount: ${approvedStr} THB\nApproved By: ${r.actor_name}\nStatus: Waiting for accountant disbursement`;
-    } 
+    }
     else if (action === "rejected") {
       messageTh = `❌ ปฏิเสธใบเบิกแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nผู้ดำเนินการ: ${r.actor_name}\nสถานะ: ปฏิเสธการเบิกเงิน`;
       messageEn = `❌ Expense Rejected: ${r.request_number}\nTitle: ${r.title}\nRejected By: ${r.actor_name}\nStatus: Rejected`;
-    } 
+    }
     else if (action === "disbursed") {
       const channelLabel = r.disbursal_channel === "bank_transfer" ? "โอนเงินผ่านธนาคาร" : r.disbursal_channel === "cash" ? "เงินสด" : "ช่องทางอื่น";
       const channelLabelEn = r.disbursal_channel === "bank_transfer" ? "Bank Transfer" : r.disbursal_channel === "cash" ? "Cash" : "Other";
       messageTh = `💵 โอนเงินให้ผู้จัดการแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nยอดโอน: ${disbursedStr} บาท\nช่องทาง: ${channelLabel}\nสถานะ: ผู้จัดการอยู่ระหว่างจ่ายเงินและรายงานผลจริง`;
       messageEn = `💵 Disbursed to Manager: ${r.request_number}\nTitle: ${r.title}\nDisbursed Amount: ${disbursedStr} THB\nChannel: ${channelLabelEn}\nStatus: Spent report pending from manager`;
-    } 
+    }
     else if (action === "spent") {
       messageTh = `📋 ผู้จัดการจ่ายเงินครบแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nผู้รายงาน: ${r.actor_name}\nสถานะ: รอฝ่ายบัญชีตรวจสอบการใช้จ่ายและปิดยอดบัญชี`;
       messageEn = `📋 Spent Completed: ${r.request_number}\nTitle: ${r.title}\nReported By: ${r.actor_name}\nStatus: Waiting for accountant audit and close`;
-    } 
+    }
     else if (action === "closed") {
       messageTh = `🔒 ปิดยอดบัญชีเรียบร้อย: ${r.request_number}\nเรื่อง: ${r.title}\nผู้ตรวจสอบ: ${r.actor_name}\nสถานะ: ตรวจสอบงบผ่านเรียบร้อยและปิดยอดบัญชีการเบิกจ่ายค่ะ`;
       messageEn = `🔒 Expense Closed: ${r.request_number}\nTitle: ${r.title}\nAudited By: ${r.actor_name}\nStatus: Audited & closed successfully`;
-    } 
+    }
     else if (action === "cancelled") {
       messageTh = `🚫 ยกเลิกคำขอเบิกแล้ว: ${r.request_number}\nเรื่อง: ${r.title}\nผู้ดำเนินการ: ${r.actor_name}\nสถานะ: ยกเลิก/Cancelled`;
       messageEn = `🚫 Expense Cancelled: ${r.request_number}\nTitle: ${r.title}\nCancelled By: ${r.actor_name}\nStatus: Cancelled`;
@@ -422,12 +422,15 @@ export async function notifyLineExpenseUpdate(requestId: string, action: string,
 
     if (!messageTh) return;
 
+    const messageThWithLink = messageTh + `\n\n🔗 ดูรายละเอียดคำขอ: https://suan-ake.cloud/expenses?id=${requestId}`;
+    const messageEnWithLink = messageEn + `\n\n🔗 View details: https://suan-ake.cloud/expenses?id=${requestId}`;
+
     for (const u of usersRes.rows) {
       const lineUserId = (u.line_id || "").trim();
       if (!lineUserId) continue;
 
       const lang = u.preferred_language === "en" ? "en" : "th";
-      const text = lang === "en" ? messageEn : messageTh;
+      const text = lang === "en" ? messageEnWithLink : messageThWithLink;
 
       await pushLineText(lineUserId, token, text, quickReply);
     }

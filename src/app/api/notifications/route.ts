@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { getCurrentUser, requireAdmin } from "@/lib/session";
+import { getCurrentUser, requireAdminOrManager } from "@/lib/session";
 import crypto from "crypto";
 
 export async function GET(req: NextRequest) {
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const body = await req.json();
     const id = crypto.randomUUID();
     await query(

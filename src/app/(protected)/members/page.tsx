@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import FinancePageHeader from "@/components/finance/FinancePageHeader";
 import KpiCard from "@/components/finance/KpiCard";
 import { formatMoney, numberValue, uatPath } from "@/components/finance/finance-format";
@@ -80,6 +80,29 @@ export default function MembersPage() {
       totalFee: stats.reduce((sum, s) => sum + numberValue(s.total_maintenance_fee), 0),
     };
   }, [stats]);
+
+  const renderMemberForm = () => (
+    <div className="bg-surface-50 p-4 rounded-xl border border-surface-200 text-left">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-surface-900">{form.id ? t("แก้ไขข้อมูลสมาชิก", "Edit member") : t("เพิ่มสมาชิก", "Add member")}</h2>
+        <button type="button" onClick={() => { setShowForm(false); setForm(emptyForm); }} className="text-sm text-surface-500 hover:text-surface-800">✕</button>
+      </div>
+      <form onSubmit={submit} className="grid md:grid-cols-3 gap-3">
+        <div><label className={label}>{t("บ้านเลขที่", "House number")}</label><input className={input} value={form.house_number} onChange={(e) => setForm({ ...form, house_number: e.target.value })} required /></div>
+        <div className="md:col-span-2"><label className={label}>{t("ชื่อเจ้าของ", "Owner name")}</label><input className={input} value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} required /></div>
+        <div><label className={label}>{t("เบอร์โทร", "Phone")}</label><input className={input} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+        <div><label className={label}>Email</label><input className={input} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+        <div><label className={label}>LINE ID</label><input className={input} value={form.line_id} onChange={(e) => setForm({ ...form, line_id: e.target.value })} /></div>
+        <div><label className={label}>{t("ประเภทที่ดิน", "Land type")}</label><select className={input} value={form.land_type} onChange={(e) => setForm({ ...form, land_type: e.target.value })} required><option value="">{t("เลือกประเภทที่ดิน", "Select land type")}</option>{landTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
+        <div><label className={label}>{t("พื้นที่ (ตรว.)", "Area (sq.w.)")}</label><input className={input} type="number" step="0.01" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} /></div>
+        <div><label className={label}>{t("จำนวนแปลง", "Land count")}</label><input className={input} type="number" value={form.land_count} onChange={(e) => setForm({ ...form, land_count: e.target.value })} /></div>
+        <div><label className={label}>{t("ค่าส่วนกลาง", "Maintenance fee")}</label><input className={input} type="text" value={form.maintenance_fee} onChange={(e) => setForm({ ...form, maintenance_fee: e.target.value })} onFocus={(e) => { setForm({ ...form, maintenance_fee: String(form.maintenance_fee).replace(/,/g, "") }); }} onBlur={(e) => { const num = parseFloat(String(form.maintenance_fee).replace(/,/g, "")); if (!isNaN(num)) { setForm({ ...form, maintenance_fee: num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }); } }} /></div>
+        <div><label className={label}>{t("สถานะ", "Status")}</label><select className={input} value={form.member_status} onChange={(e) => setForm({ ...form, member_status: e.target.value })}><option value="active">{t("ใช้งาน", "Active")}</option><option value="inactive">{t("ไม่ใช้งาน", "Inactive")}</option><option value="suspended">{t("ระงับ", "Suspended")}</option></select></div>
+        <div className="md:col-span-3"><label className={label}>{t("หมายเหตุ", "Notes")}</label><textarea className={input} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+        <button disabled={saving} className="btn-primary md:col-span-3">{saving ? t("กำลังบันทึก...", "Saving...") : t("บันทึกข้อมูลสมาชิก", "Save member")}</button>
+      </form>
+    </div>
+  );
 
   function editMember(member: any) {
     const c = member.contact_info || {};
@@ -192,31 +215,58 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {showForm && <div className="card mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-surface-900">{form.id ? t("แก้ไขข้อมูลสมาชิก", "Edit member") : t("เพิ่มสมาชิก", "Add member")}</h2>
-          <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="text-sm text-surface-500 hover:text-surface-800">✕</button>
-        </div>
-        <form onSubmit={submit} className="grid md:grid-cols-3 gap-3">
-          <div><label className={label}>{t("บ้านเลขที่", "House number")}</label><input className={input} value={form.house_number} onChange={(e) => setForm({ ...form, house_number: e.target.value })} required /></div>
-          <div className="md:col-span-2"><label className={label}>{t("ชื่อเจ้าของ", "Owner name")}</label><input className={input} value={form.owner_name} onChange={(e) => setForm({ ...form, owner_name: e.target.value })} required /></div>
-          <div><label className={label}>{t("เบอร์โทร", "Phone")}</label><input className={input} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-          <div><label className={label}>Email</label><input className={input} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-          <div><label className={label}>LINE ID</label><input className={input} value={form.line_id} onChange={(e) => setForm({ ...form, line_id: e.target.value })} /></div>
-          <div><label className={label}>{t("ประเภทที่ดิน", "Land type")}</label><select className={input} value={form.land_type} onChange={(e) => setForm({ ...form, land_type: e.target.value })} required><option value="">{t("เลือกประเภทที่ดิน", "Select land type")}</option>{landTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
-          <div><label className={label}>{t("พื้นที่ (ตรว.)", "Area (sq.w.)")}</label><input className={input} type="number" step="0.01" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} /></div>
-          <div><label className={label}>{t("จำนวนแปลง", "Land count")}</label><input className={input} type="number" value={form.land_count} onChange={(e) => setForm({ ...form, land_count: e.target.value })} /></div>
-          <div><label className={label}>{t("ค่าส่วนกลาง", "Maintenance fee")}</label><input className={input} type="text" value={form.maintenance_fee} onChange={(e) => setForm({ ...form, maintenance_fee: e.target.value })} onFocus={(e) => { setForm({ ...form, maintenance_fee: String(form.maintenance_fee).replace(/,/g, "") }); }} onBlur={(e) => { const num = parseFloat(String(form.maintenance_fee).replace(/,/g, "")); if (!isNaN(num)) { setForm({ ...form, maintenance_fee: num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }); } }} /></div>
-          <div><label className={label}>{t("สถานะ", "Status")}</label><select className={input} value={form.member_status} onChange={(e) => setForm({ ...form, member_status: e.target.value })}><option value="active">{t("ใช้งาน", "Active")}</option><option value="inactive">{t("ไม่ใช้งาน", "Inactive")}</option><option value="suspended">{t("ระงับ", "Suspended")}</option></select></div>
-          <div className="md:col-span-3"><label className={label}>{t("หมายเหตุ", "Notes")}</label><textarea className={input} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-          <button disabled={saving} className="btn-primary md:col-span-3">{saving ? t("กำลังบันทึก...", "Saving...") : t("บันทึกข้อมูลสมาชิก", "Save member")}</button>
-        </form>
-      </div>}
+      {showForm && !form.id && <div className="card mb-6">{renderMemberForm()}</div>}
 
       <div className="bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
         {loading ? <div className="text-center py-12 text-surface-500">{t("กำลังโหลด...", "Loading...")}</div> : members.length === 0 ? <div className="text-center py-12 text-surface-500">{t("ไม่พบข้อมูลสมาชิก", "No members found")}</div> : <>
-          <div className="hidden lg:block overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-surface-50 text-surface-500"><tr><th className="p-3 text-left">{t("บ้าน", "House")}</th><th className="p-3 text-left">{t("เจ้าของ", "Owner")}</th><th className="p-3 text-left">{t("ติดต่อ", "Contact")}</th><th className="p-3 text-right">{t("พื้นที่ (ตรว.)", "Area (sq.w.)")}</th><th className="p-3 text-right">{t("ค่าส่วนกลาง", "Fee")}</th><th className="p-3 text-left">{t("สถานะ", "Status")}</th><th className="p-3"></th></tr></thead><tbody>{members.map((m) => <tr key={m.id} className="border-t border-surface-100 hover:bg-surface-50"><td className="p-3 font-medium"><div>{m.house_number}</div><div className="text-xs font-normal text-surface-500">{landTypeLabel(m.land_type)}</div></td><td className="p-3">{m.owner_name || "-"}</td><td className="p-3 text-surface-600">{m.contact_info?.phone || m.contact_info?.line_id || m.contact_info?.email || "-"}</td><td className="p-3 text-right tabular-nums">{m.area || "-"}</td><td className="p-3 text-right tabular-nums">{formatMoney(m.maintenance_fee, lang)}</td><td className="p-3"><span className="rounded-full bg-surface-100 px-2 py-1 text-xs">{m.member_status}</span></td><td className="p-3 text-right space-x-2"><button onClick={() => editMember(m)} className="text-brand-600 font-medium hover:underline">{t("แก้ไข", "Edit")}</button><button onClick={() => removeMember(m)} className="text-red-600 font-medium hover:underline">{t("ลบ", "Delete")}</button></td></tr>)}</tbody></table></div>
-          <div className="lg:hidden divide-y divide-surface-100">{members.map((m) => <div key={m.id} className="p-4"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="font-semibold text-surface-900">{t("บ้าน", "House")} {m.house_number}</div><div className="text-xs text-surface-500">{landTypeLabel(m.land_type)}</div><div className="text-sm text-surface-500 break-words">{m.owner_name || "-"}</div></div><span className="rounded-full bg-surface-100 px-2 py-1 text-xs shrink-0">{m.member_status}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-sm"><div><span className="text-surface-500">{t("พื้นที่ (ตรว.)", "Area (sq.w.)")}</span><div className="font-semibold">{m.area || "-"}</div></div><div><span className="text-surface-500">{t("ค่าส่วนกลาง", "Fee")}</span><div className="font-semibold">{formatMoney(m.maintenance_fee, lang)}</div></div></div><div className="mt-3 flex gap-2"><button onClick={() => editMember(m)} className="flex-1 rounded-xl bg-brand-50 text-brand-700 py-2 text-sm font-medium">{t("แก้ไข", "Edit")}</button><button onClick={() => removeMember(m)} className="flex-1 rounded-xl bg-red-50 text-red-700 py-2 text-sm font-medium">{t("ลบ", "Delete")}</button></div></div>)}</div>
+          <div className="hidden lg:block overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-surface-50 text-surface-500"><tr><th className="p-3 text-left">{t("บ้าน", "House")}</th><th className="p-3 text-left">{t("เจ้าของ", "Owner")}</th><th className="p-3 text-left">{t("ติดต่อ", "Contact")}</th><th className="p-3 text-right">{t("พื้นที่ (ตรว.)", "Area (sq.w.)")}</th><th className="p-3 text-right">{t("ค่าส่วนกลาง", "Fee")}</th><th className="p-3 text-left">{t("สถานะ", "Status")}</th><th className="p-3"></th></tr></thead><tbody>{members.map((m) => (
+                    <Fragment key={m.id}>
+                      <tr className="border-t border-surface-100 hover:bg-surface-50">
+                        <td className="p-3 font-medium"><div>{m.house_number}</div><div className="text-xs font-normal text-surface-500">{landTypeLabel(m.land_type)}</div></td>
+                        <td className="p-3">{m.owner_name || "-"}</td>
+                        <td className="p-3 text-surface-600">{m.contact_info?.phone || m.contact_info?.line_id || m.contact_info?.email || "-"}</td>
+                        <td className="p-3 text-right tabular-nums">{m.area || "-"}</td>
+                        <td className="p-3 text-right tabular-nums">{formatMoney(m.maintenance_fee, lang)}</td>
+                        <td className="p-3"><span className="rounded-full bg-surface-100 px-2 py-1 text-xs">{m.member_status}</span></td>
+                        <td className="p-3 text-right space-x-2">
+                          <button onClick={() => editMember(m)} className="text-brand-600 font-medium hover:underline">{t("แก้ไข", "Edit")}</button>
+                          <button onClick={() => removeMember(m)} className="text-red-600 font-medium hover:underline">{t("ลบ", "Delete")}</button>
+                        </td>
+                      </tr>
+                      {showForm && form.id === m.id && (
+                        <tr>
+                          <td colSpan={7} className="p-4 bg-surface-50 border-t border-b border-surface-200">
+                            {renderMemberForm()}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}</tbody></table></div>
+          <div className="lg:hidden divide-y divide-surface-100">{members.map((m) => (
+                  <div key={m.id} className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-surface-900">{t("บ้าน", "House")} {m.house_number}</div>
+                        <div className="text-xs text-surface-500">{landTypeLabel(m.land_type)}</div>
+                        <div className="text-sm text-surface-500 break-words">{m.owner_name || "-"}</div>
+                      </div>
+                      <span className="rounded-full bg-surface-100 px-2 py-1 text-xs shrink-0">{m.member_status}</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-surface-500">{t("พื้นที่ (ตรว.)", "Area (sq.w.)")}</span><div className="font-semibold">{m.area || "-"}</div></div>
+                      <div><span className="text-surface-500">{t("ค่าส่วนกลาง", "Fee")}</span><div className="font-semibold">{formatMoney(m.maintenance_fee, lang)}</div></div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => editMember(m)} className="flex-1 rounded-xl bg-brand-50 text-brand-700 py-2 text-sm font-medium">{t("แก้ไข", "Edit")}</button>
+                      <button onClick={() => removeMember(m)} className="flex-1 rounded-xl bg-red-50 text-red-700 py-2 text-sm font-medium">{t("ลบ", "Delete")}</button>
+                    </div>
+                    {showForm && form.id === m.id && (
+                      <div className="mt-4 border-t border-surface-200 pt-4">
+                        {renderMemberForm()}
+                      </div>
+                    )}
+                  </div>
+                ))}</div>
         </>}
       </div>
     </div>

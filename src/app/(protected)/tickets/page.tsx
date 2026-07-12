@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, useMemo } from "react";
 import StatusBadge from "@/components/StatusBadge";
 import { useLanguage } from "@/components/LanguageContext";
 import { DropdownGroups, fetchDropdownGroups, optionClass, optionText, optionWithIcon } from "@/lib/dropdown-client";
@@ -33,6 +33,35 @@ export default function TicketsPage() {
   const [message, setMessage] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dropdownGroups, setDropdownGroups] = useState<DropdownGroups>({});
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-01-01`;
+  });
+  const [toDate, setToDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split("T")[0];
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const filteredTickets = useMemo(() => {
+    return tickets.filter((ticket) => {
+      const dateStr = ticket.reported_at ? new Date(ticket.reported_at).toISOString().split("T")[0] : "";
+      return dateStr >= fromDate && dateStr <= toDate;
+    });
+  }, [tickets, fromDate, toDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTickets.length / 10));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredTickets, totalPages, currentPage]);
+
+  const paginatedTickets = useMemo(() => {
+    const start = (currentPage - 1) * 10;
+    return filteredTickets.slice(start, start + 10);
+  }, [filteredTickets, currentPage]);
 
   const t = (th: string, en: string) => (lang === "th" ? th : en);
   const label = (group: string, code?: string | null) => optionText(dropdownGroups, group, code, lang, code || "-");
@@ -149,7 +178,7 @@ export default function TicketsPage() {
               <div className="rounded-xl bg-white border border-surface-200 p-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-surface-500 mb-1">
                   <span>{formatDate(log.created_at)}</span>
-                  {log.status && <span className="px-1.5 py-0.5 rounded bg-brand-50 text-brand-700">{label("ticket_status", log.status)}</span>}
+                  {log.status && <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${optionClass(dropdownGroups, "ticket_status", log.status, "bg-surface-100 text-surface-700")}`}>{label("ticket_status", log.status)}</span>}
                   {log.priority && <span className="px-1.5 py-0.5 rounded bg-surface-100 text-surface-700">{label("ticket_priority", log.priority)}</span>}
                   {log.assigned_to && <span>• {t("ผู้รับผิดชอบ", "Assigned")}: {log.assigned_to}</span>}
                 </div>
@@ -236,10 +265,40 @@ export default function TicketsPage() {
         </div>
       </div>
 
+      {/* Date Filters */}
+      <div className="bg-white p-4 rounded-3xl border border-surface-200 shadow-sm grid grid-cols-2 gap-3 mb-6">
+        <div>
+          <label className="block text-xs font-medium text-surface-500 mb-1">{t("ตั้งแต่วันที่", "From Date")}</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-semibold"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-surface-500 mb-1">{t("ถึงวันที่", "To Date")}</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all font-semibold"
+          />
+        </div>
+      </div>
+
       {loading ? (
         <div className="text-center py-12 text-surface-500">{t("กำลังโหลด...", "Loading...")}</div>
       ) : (
         <>
+          {filteredTickets.length === 0 ? <div className="text-center py-12 text-surface-500">{t("ไม่มีรายการปัญหาร้องเรียนในช่วงเวลาที่เลือก", "No tickets in selected date range")}</div> : (
+          <>
           <div className="hidden md:block bg-white rounded-2xl border border-surface-200 shadow-sm overflow-hidden">
             <table className="w-full text-sm text-left">
               <thead className="bg-surface-50 text-surface-600 font-medium text-xs uppercase tracking-wider">
@@ -254,7 +313,7 @@ export default function TicketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {tickets.map((ticket) => (
+                {paginatedTickets.map((ticket) => (
                   <Fragment key={ticket.id}>
                     <tr className="bg-white border-t border-surface-200 hover:bg-surface-50 cursor-pointer transition-colors" onClick={() => setExpandedId(expandedId === ticket.id ? null : ticket.id)}>
                       <td className="px-4 py-4 font-mono text-xs">{ticket.ticket_number}</td>
@@ -273,7 +332,7 @@ export default function TicketsPage() {
           </div>
 
           <div className="md:hidden space-y-3">
-            {tickets.map((ticket) => (
+            {paginatedTickets.map((ticket) => (
               <div key={ticket.id} className="bg-white rounded-2xl border border-surface-200 shadow-sm p-4" onClick={() => setExpandedId(expandedId === ticket.id ? null : ticket.id)}>
                 <div className="flex items-start justify-between mb-2">
                   <span className="font-mono text-xs text-surface-500">{ticket.ticket_number}</span>
@@ -294,6 +353,30 @@ export default function TicketsPage() {
             ))}
           </div>
           {tickets.length === 0 && <div className="text-center py-12 text-surface-500">{t("ไม่มีรายการ", "No tickets")}</div>}
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-surface-200 bg-transparent">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-4 py-2 border border-surface-200 rounded-xl text-xs font-semibold bg-white text-surface-600 hover:bg-surface-50 disabled:opacity-50 transition-colors"
+              >
+                {t("ก่อนหน้า", "Previous")}
+              </button>
+              <span className="text-xs text-surface-500 font-medium">
+                {t(`หน้า ${currentPage} จาก ${totalPages}`, `Page ${currentPage} of ${totalPages}`)}
+              </span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-4 py-2 border border-surface-200 rounded-xl text-xs font-semibold bg-white text-surface-600 hover:bg-surface-50 disabled:opacity-50 transition-colors"
+              >
+                {t("ถัดไป", "Next")}
+              </button>
+            </div>
+          )}
+          </>
+          )}
         </>
       )}
     </>

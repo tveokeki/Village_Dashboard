@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/session";
+import { requireAdminOrManager } from "@/lib/session";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -15,7 +15,7 @@ const allowed = new Set([
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin();
+    await requireAdminOrManager();
     const form = await req.formData();
     const file = form.get("file") as File | null;
     const type = String(form.get("type") || "documents");

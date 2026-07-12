@@ -3,6 +3,7 @@
 import { useEffect, useState, Fragment } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { useCurrentUser } from "@/lib/current-user-client";
 import { useLanguage } from "@/components/LanguageContext";
 import Toast from "@/components/Toast";
 import { DropdownGroups, fetchDropdownGroups, optionText, optionWithIcon, optionClass } from "@/lib/dropdown-client";
@@ -14,13 +15,23 @@ type Tab = "announcements" | "documents" | "tickets" | "users" | "notifications"
 
 export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
   const { lang } = useLanguage();
+  const { user } = useCurrentUser();
+  const roles = user?.roles || [];
+  const isAdmin = roles.includes("admin") || user?.isAdmin || false;
+  const isManager = roles.includes("manager") || false;
+  const canAccessUsers = isAdmin || isManager;
+
   const [tab, setTab] = useState<Tab>(defaultTab || "announcements");
 
   useEffect(() => {
     if (defaultTab) {
-      setTab(defaultTab);
+      if (defaultTab === "users" && !canAccessUsers && user) {
+        setTab("announcements");
+      } else {
+        setTab(defaultTab);
+      }
     }
-  }, [defaultTab]);
+  }, [defaultTab, isAdmin, user]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -33,6 +44,39 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
   const [editingAnnouncement, setEditingAnnouncement] = useState<any | null>(null);
   const [editingDocument, setEditingDocument] = useState<any | null>(null);
   const [editingNotification, setEditingNotification] = useState<any | null>(null);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+
+  async function submitEditProfile(e: any) {
+    e.preventDefault();
+    const formEl = e.currentTarget as HTMLFormElement;
+    setLoading(true);
+    setMessage("");
+    try {
+      if (!editingUser) return;
+      const f = new FormData(formEl);
+      const payload = {
+        display_name: f.get("display_name"),
+        email: f.get("email"),
+        house_number: f.get("house_number"),
+        phone: f.get("phone"),
+        notification_enabled: f.get("notification_enabled") === "on",
+      };
+      const res = await fetch(uatPath(`/api/admin/users/${editingUser.id}`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Update failed");
+      setToast(t("แก้ไขโปรไฟล์เรียบร้อยแล้ว", "User profile updated successfully"));
+      setEditingUser(null);
+      await loadAll();
+    } catch (err: any) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,7 +97,7 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
         fetch(uatPath("/api/admin/announcements")).then(r => r.json()),
         fetch(uatPath("/api/admin/documents")).then(r => r.json()),
         fetch(uatPath(`/api/admin/tickets?status=${ticketFilter}${ticketSearch.trim() ? `&q=${encodeURIComponent(ticketSearch.trim())}` : ""}`)).then(r => r.json()),
-        fetch(uatPath("/api/admin/users")).then(r => r.json()),
+        canAccessUsers ? fetch(uatPath("/api/admin/users")).then(r => r.json()) : Promise.resolve({ users: [], roles: [] }),
         fetch(uatPath("/api/notifications")).then(r => r.json()),
         fetchDropdownGroups(["announcement_category", "document_category", "ticket_status", "ticket_priority", "notification_type", "problem_category"]),
       ]);
@@ -61,7 +105,12 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
       setAnnouncements(a.announcements || []);
       setDocuments(d.documents || []);
       setTickets(tk.tickets || []);
-      setUsers(u.users || []);
+      const sortedUsersList = (u.users || []).sort((userA: any, userB: any) => {
+        const nameA = (userA.display_name || userA.email || "").trim().toLowerCase();
+        const nameB = (userB.display_name || userB.email || "").trim().toLowerCase();
+        return nameA.localeCompare(nameB, lang === "th" ? "th" : "en");
+      });
+      setUsers(sortedUsersList);
       setAvailableRoles(u.roles || []);
       setNotifications(n.notifications || []);
       setDropdownGroups(dd || {});
@@ -74,7 +123,7 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
     setTicketPage(1);
     const timer = window.setTimeout(() => loadAll(), 300);
     return () => window.clearTimeout(timer);
-  }, [ticketFilter, ticketSearch]);
+  }, [ticketFilter, ticketSearch, isAdmin]);
   async function upload(file: File, type: string) {
     const form = new FormData();
     form.append("file", file);
@@ -198,14 +247,21 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
 
   async function toggleUserRole(user: any, roleCode: string) {
     const currentRoles = new Set<string>(user.roles || [user.role || "resident"]);
-    if (currentRoles.has(roleCode)) {
-      currentRoles.delete(roleCode);
+    if (roleCode === "resident") {
+      // If choosing resident (normal user), remove all other roles and only keep resident
+      currentRoles.clear();
+      currentRoles.add("resident");
     } else {
-      currentRoles.add(roleCode);
-      if (roleCode !== "resident") currentRoles.delete("resident");
+      if (currentRoles.has(roleCode)) {
+        currentRoles.delete(roleCode);
+      } else {
+        currentRoles.add(roleCode);
+        currentRoles.delete("resident");
+      }
     }
-    if (currentRoles.size === 0) currentRoles.add("resident");
-    if (currentRoles.size > 1 && currentRoles.has("resident")) currentRoles.delete("resident");
+    if (currentRoles.size === 0) {
+      currentRoles.add("resident");
+    }
     await saveUserRoles(user, Array.from(currentRoles));
   }
 
@@ -282,7 +338,7 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
     { key: "announcements", th: "ประกาศ", en: "Announcements", icon: "📢" },
     { key: "documents", th: "เอกสาร", en: "Documents", icon: "📄" },
     { key: "tickets", th: "ปัญหาร้องเรียน", en: "Tickets", icon: "🎫" },
-    { key: "users", th: "ผู้ใช้", en: "Users", icon: "👥" },
+    ...(canAccessUsers ? [{ key: "users" as Tab, th: "ผู้ใช้", en: "Users", icon: "👥" }] : []),
     { key: "notifications", th: "แจ้งเตือน", en: "Notifications", icon: "🔔" },
   ];
 
@@ -423,7 +479,7 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
                   <button onClick={() => deleteTicket(ticket.id)} className="text-red-600 hover:text-red-800 text-sm shrink-0 font-medium px-3 py-1 border border-red-200 hover:border-red-300 rounded-lg hover:bg-red-50 transition-colors self-start">{t("ลบรายการ", "Delete")}</button>
                 </div>
 
-                <form onSubmit={(e) => updateTicket(e, ticket.id)} className="bg-white p-4 rounded-xl border border-surface-200 grid md:grid-cols-4 gap-3">
+                <form key={ticket.id + "-" + ticket.status + "-" + ticket.priority + "-" + (ticket.assigned_to || "")} onSubmit={(e) => updateTicket(e, ticket.id)} className="bg-white p-4 rounded-xl border border-surface-200 grid md:grid-cols-4 gap-3">
                   <div className="md:col-span-4">
                     <h4 className="font-semibold text-surface-900 text-sm">{t("อัปเดตและบันทึกความคืบหน้า", "Update & Log Progress")}</h4>
                   </div>
@@ -462,7 +518,7 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
                           <div className="flex flex-wrap items-center gap-2 text-xs text-surface-500">
                             <span>{new Date(log.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-US")}</span>
                             {log.created_by_name && <span>• {log.created_by_name}</span>}
-                            {log.status && <span className="px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 font-medium">{label("ticket_status", log.status)}</span>}
+                            {log.status && <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${optionClass(dropdownGroups, "ticket_status", log.status, "bg-surface-100 text-surface-700")}`}>{label("ticket_status", log.status)}</span>}
                           </div>
                           {log.can_edit && <button type="button" onClick={() => editTicketLog(ticket.id, log)} className="text-xs text-brand-700 hover:underline">{t("แก้ไข", "Edit")}</button>}
                         </div>
@@ -483,7 +539,7 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
                     `Showing ${totalItems > 0 ? startIndex + 1 : 0} to ${Math.min(endIndex, totalItems)} of ${totalItems} items`
                   )}
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Page size selector */}
                   <div className="flex items-center gap-1.5 mr-2">
@@ -655,8 +711,17 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
             <div key={u.id} className="card space-y-3">
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-medium text-sm text-surface-900 break-words">{u.display_name || u.email}</div>
-                  <div className="text-xs text-surface-500 break-words">{u.email} {u.house_number ? `• ${t("บ้าน", "House")} ${u.house_number}` : ""}</div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="font-medium text-sm text-surface-900 break-words">{u.display_name || u.email}</div>
+                    <button type="button" onClick={() => setEditingUser(editingUser?.id === u.id ? null : u)} className="text-brand-700 text-xs font-semibold hover:underline flex items-center gap-1 shrink-0">
+                      <span>📝 {t("แก้ไขโปรไฟล์", "Edit Profile")}</span>
+                    </button>
+                  </div>
+                  <div className="text-xs text-surface-500 break-words">
+                    {u.email}
+                    {u.house_number ? ` • ${t("บ้าน", "House")} ${u.house_number}` : ""}
+                    {u.phone ? ` • 📞 ${u.phone}` : ""}
+                  </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {Array.from(userRoles).map((role) => <span key={role} className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs">{role}</span>)}
                   </div>
@@ -666,6 +731,39 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
                   <div>{u.notification_enabled ? t("รับแจ้งเตือน", "Notifications on") : t("ปิดแจ้งเตือน", "Notifications off")}</div>
                 </div>
               </div>
+              {editingUser?.id === u.id && (
+                <form onSubmit={submitEditProfile} className="bg-surface-50 border border-surface-200 p-4 rounded-xl space-y-3 mt-3 text-left">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-surface-500 font-medium">{t("ชื่อแสดงผล", "Display Name")}</label>
+                      <input name="display_name" required defaultValue={u.display_name || ""} className="input-field" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-surface-500 font-medium">{t("อีเมล", "Email")}</label>
+                      <input name="email" required type="email" defaultValue={u.email || ""} className="input-field" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-surface-500 font-medium">{t("บ้านเลขที่", "House Number")}</label>
+                      <input name="house_number" defaultValue={u.house_number || ""} className="input-field" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-surface-500 font-medium">{t("เบอร์โทรศัพท์", "Phone")}</label>
+                      <input name="phone" defaultValue={u.phone || ""} className="input-field" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
+                    <label className="flex items-center gap-2 text-sm text-surface-600">
+                      <input name="notification_enabled" type="checkbox" defaultChecked={u.notification_enabled !== false} className="rounded border-surface-300 text-brand-600 focus:ring-brand-500" />
+                      <span>{t("เปิดใช้งานการแจ้งเตือนผ่าน LINE", "Enable LINE notifications")}</span>
+                    </label>
+                    <div className="flex gap-2 justify-end">
+                      <button type="button" onClick={() => setEditingUser(null)} className="px-3 py-1.5 rounded-lg border border-surface-200 text-xs font-medium text-surface-600 hover:bg-surface-100">{t("ยกเลิก", "Cancel")}</button>
+                      <button className="btn-primary px-4 py-1.5 text-xs">{t("บันทึกข้อมูล", "Save Profile")}</button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-3 border-t border-surface-100">
                 {availableRoles.map((role) => {
                   const checked = userRoles.has(role.role_code);
@@ -673,9 +771,9 @@ export function AdminConsole({ defaultTab }: { defaultTab?: Tab }) {
                     <button
                       key={role.role_code}
                       type="button"
-                      disabled={loading}
+                      disabled={loading || !isAdmin}
                       onClick={() => toggleUserRole(u, role.role_code)}
-                      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left transition-colors ${checked ? "bg-brand-50 border-brand-200 text-brand-700" : "bg-white border-surface-200 text-surface-600 hover:bg-surface-50"}`}
+                      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left transition-colors ${checked ? "bg-brand-50 border-brand-200 text-brand-700" : "bg-white border-surface-200 text-surface-600 hover:bg-surface-50"} ${!isAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
                     >
                       <span>
                         <span className="block text-sm font-medium">{lang === "th" ? role.role_name_th : role.role_name_en}</span>

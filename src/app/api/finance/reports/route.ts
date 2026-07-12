@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
            SELECT category, COALESCE(SUM(COALESCE(amount_approved, amount_requested)), 0) AS amount
            FROM slip_processing.expense_items ei
            JOIN slip_processing.expense_requests er ON er.id = ei.request_id, period
-           WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status IN ('approved','paid')
+           WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status IN ('approved', 'disbursed', 'spent', 'closed')
              AND COALESCE(er.decided_at::date, er.requested_at::date) >= period.start_date
              AND COALESCE(er.decided_at::date, er.requested_at::date) < period.end_date
            GROUP BY category
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
            SELECT EXTRACT(MONTH FROM COALESCE(er.decided_at, er.requested_at))::int AS month, SUM(COALESCE(ei.amount_approved, ei.amount_requested)) AS amount
            FROM slip_processing.expense_items ei
            JOIN slip_processing.expense_requests er ON er.id = ei.request_id
-           WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status IN ('approved','paid') AND EXTRACT(YEAR FROM COALESCE(er.decided_at, er.requested_at))::int = $1
+           WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status IN ('approved', 'disbursed', 'spent', 'closed') AND EXTRACT(YEAR FROM COALESCE(er.decided_at, er.requested_at))::int = $1
            GROUP BY 1
          )
          SELECT m.month, COALESCE(r.amount,0) AS revenue, COALESCE(e.amount,0) AS expense, COALESCE(r.amount,0) - COALESCE(e.amount,0) AS net
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
            COALESCE((SELECT SUM(COALESCE(ei.amount_approved, ei.amount_requested))
                      FROM slip_processing.expense_items ei
                      JOIN slip_processing.expense_requests er ON er.id = ei.request_id
-                     WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status IN ('approved','paid')
+                     WHERE ei.deleted_at IS NULL AND er.deleted_at IS NULL AND er.status IN ('approved', 'disbursed', 'spent', 'closed')
                        AND EXTRACT(YEAR FROM COALESCE(er.decided_at, er.requested_at))::int = $1), 0) AS recognized_expense`,
         [year]
       );

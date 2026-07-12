@@ -38,6 +38,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       id: item.id || null,
       description: requiredString(item.description, "item.description"),
       category: requiredString(item.category, "item.category"),
+      subcategory: item.subcategory || null,
+      notes: item.notes || null,
       amount: positiveMoney(item.amount ?? item.amount_requested, "item.amount"),
       payment_source: item.payment_source || "bank_transfer",
       spent_at: item.spent_at || null,
@@ -82,16 +84,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // Update existing item
         await client.query(
           `UPDATE slip_processing.expense_items
-           SET description = $1, category = $2, amount_requested = $3, payment_source = $4, spent_at = $5, receipt_file_path = $6, metadata = $7, updated_at = NOW()
-           WHERE id = $8 AND request_id = $9`,
-          [item.description, item.category, item.amount, item.payment_source, item.spent_at, item.receipt_file_path, item.metadata, item.id, id]
+           SET description = $1, category = $2, subcategory = $3, notes = $4, amount_requested = $5, payment_source = $6, spent_at = $7, receipt_file_path = $8, metadata = $9, updated_at = NOW()
+           WHERE id = $10 AND request_id = $11`,
+          [item.description, item.category, item.subcategory, item.notes, item.amount, item.payment_source, item.spent_at, item.receipt_file_path, item.metadata, item.id, id]
         );
       } else {
         // Insert new item
         await client.query(
-          `INSERT INTO slip_processing.expense_items (request_id, description, category, amount_requested, payment_source, spent_at, receipt_file_path, metadata)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [id, item.description, item.category, item.amount, item.payment_source, item.spent_at, item.receipt_file_path, item.metadata]
+          `INSERT INTO slip_processing.expense_items (request_id, description, category, subcategory, notes, amount_requested, payment_source, spent_at, receipt_file_path, metadata)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [id, item.description, item.category, item.subcategory, item.notes, item.amount, item.payment_source, item.spent_at, item.receipt_file_path, item.metadata]
         );
       }
     }
@@ -142,12 +144,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      
+
       await client.query(
         "UPDATE slip_processing.expense_requests SET deleted_at = NOW(), deleted_by = $1, status = 'cancelled' WHERE id = $2",
         [coreUserId, id]
       );
-      
+
       await client.query(
         "UPDATE slip_processing.expense_items SET deleted_at = NOW(), deleted_by = $1, status = 'cancelled' WHERE request_id = $2 AND deleted_at IS NULL",
         [coreUserId, id]
